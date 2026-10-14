@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SponsorPay</title><meta name="description" content="Sponsored posts paid only if compliant and still up"><meta name="theme-color" content="#FAFAF7">
+<link rel="stylesheet" href="app.css">
+</head><body>
+<div class="bar"><div class="w"><span class="who">cristhedev <span style="color:var(--line)">/</span> genlayer builds</span><nav id="sites"></nav></div></div>
+<div class="head"><div class="w"><div><h1>SponsorPay</h1><p>Sponsored posts paid only if compliant and still up</p></div><button id="connect" class="ghost" type="button">Connect wallet</button></div></div>
+<div class="meta"><div class="w"><span>contract <a href="https://explorer-bradbury.genlayer.com/address/0x0000000000000000000000000000000000000000">0x0000…0000 ↗</a></span><span>network <b>testnet bradbury</b></span><span><a href="https://github.com/cris-the-dev/genlayer-sponsorpay">source ↗</a></span><span><a href="docs.html">docs →</a></span></div></div>
+<main class="w">
+  <p id="status" class="status" hidden></p>
+  <div class="grid">
+    <div>
+      <section>
+        <h2>Campaigns</h2>
+        <div class="tbl"><table>
+          <thead><tr><th>#</th><th>Campaign</th><th>Creator</th><th class="r">Fee</th><th class="r">Paid</th><th>Status</th></tr></thead>
+          <tbody id="campaigns"><tr><td colspan="6" class="empty">Reading the contract…</td></tr></tbody>
+        </table></div>
+      </section>
+      <section id="detail" hidden></section>
+    </div>
+
+    <aside>
+      <section>
+        <h2>How a post is paid</h2>
+        <dl class="kv">
+          <div><dt>Campaign code</dt><dd>the post must contain <span class="mono">sponsorpay-&lt;id&gt;</span></dd></div>
+          <div><dt>Validators judge</dt><dd>each requirement, met or not</dd></div>
+          <div><dt>Validators agree if</dt><dd>the same answer for every requirement</dd></div>
+          <div><dt>All met</dt><dd>half the fee now, the live period starts</dd></div>
+          <div><dt>Attempts</dt><dd>3 before the deadline, then the brand is refunded</dd></div>
+          <div><dt>Recheck</dt><dd>anyone; removed or broken post refunds the brand, a pass after the live period pays the rest</dd></div>
+          <div><dt>Outage</dt><dd>an unreachable post reverts, it never pays or refunds</dd></div>
+        </dl>
+      </section>
+      <section>
+        <details>
+          <summary>Start a campaign</summary>
+          <form id="create">
+            <label>Creator address<input name="creator" pattern="0x[0-9a-fA-F]{40}" required></label>
+            <label>Title<input name="title" minlength="3" maxlength="80" required></label>
+            <label>Brief<textarea name="brief" maxlength="1000"></textarea></label>
+            <label>Requirements, one per line (1-8)<textarea name="reqs" placeholder="Discloses the sponsorship with #ad" required></textarea></label>
+            <label>Hosts the post may be on, one per line<textarea name="hosts" placeholder="x.com" required></textarea></label>
+            <div class="row">
+              <label>Days to submit<input name="submit" type="number" min="1" max="60" value="7" required></label>
+              <label>Days live<input name="live" type="number" min="1" max="90" value="14" required></label>
+            </div>
+            <label>Fee (GEN, escrowed)<input name="fee" type="number" step="any" min="0" value="0.002" required></label>
+            <button type="submit">Escrow fee and start</button>
+          </form>
+        </details>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<div class="steps"><ol>
+  <li><small>01</small><b>Brief</b><p>The brand names a creator, writes the requirements and escrows the fee. Nothing is paid until a post passes.</p></li>
+  <li><small>02</small><b>Post</b><p>The creator publishes with the campaign code and submits the link. Validators check every requirement; all met pays half.</p></li>
+  <li><small>03</small><b>Stay up</b><p>Anyone can recheck during the live period. Removed or edited out of compliance: the brand gets the rest back. Still up at the end: the creator does.</p></li>
+</ol></div>
+
+<script type="module">
+import { contract, wireWallet, send, gen, toWei, esc, short, $, EXPLORER } from "./gl.js";
+const sp = contract("0x0000000000000000000000000000000000000000");
+let me = null, items = [];
+const when = (ts) => ts ? new Date(ts * 1000).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC" : "–";
+const addr = (a) => `<a class="mono" href="${EXPLORER}/address/${esc(a)}">${short(a)}</a>${me && a.toLowerCase() === me.toLowerCase() ? " (you)" : ""}`;
+const cls = { LIVE: "ok", COMPLETED: "ok", REFUNDED: "bad", EXPIRED: "bad" };
+const lines = (v) => v.split("\n").map((x) => x.trim()).filter(Boolean);
+
+async function load(openId) {
+  try {
+    const n = await sp.read("get_count");
+    items = await Promise.all([...Array(n).keys()].reverse().map((i) => sp.read("get_campaign", [i])));
+    $("#campaigns").innerHTML = items.length ? items.map((c) => `<tr style="cursor:pointer" data-id="${c.id}">
+      <td class="num mut">${c.id}</td><td><a href="#campaign-${c.id}">${esc(c.title)}</a></td><td>${addr(c.creator)}</td>
+      <td class="r num">${gen(c.amount, 6)} GEN</td><td class="r num">${gen(c.paid, 6)} GEN</td>
+      <td><span class="tag ${cls[c.status] || ""}">${esc(c.status.toLowerCase())}</span></td></tr>`).join("")
+      : `<tr><td colspan="6" class="empty">No campaigns yet.</td></tr>`;
+    const h = location.hash.match(/^#campaign-(\d+)$/), id = openId ?? (h ? Number(h[1]) : null);
+    if (items.length) show(Number.isInteger(id) && items.some((c) => c.id === id) ? id : items[0].id);
+  } catch (e) {
+    $("#campaigns").innerHTML = `<tr><td colspan="6" class="empty">Could not read the contract: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+function actions(c, recov) {
+  if (!me) return `<p class="hint" style="margin-top:16px">Connect a wallet to submit a post or recheck one.</p>`;
+  const now = Date.now() / 1000, out = [], isC = c.creator.toLowerCase() === me.toLowerCase();
+  if (c.status === "OPEN" && now <= c.deadline && isC && c.attempts_left > 0)
+    out.push(`<form data-form="submit_post"><label>Post URL on ${esc(c.hosts.join(", "))} (must contain <span class="mono">${esc(c.code)}</span>)<input name="url" type="url" pattern="https://.*" required></label>
+      <div><button>Submit post (${c.attempts_left} attempt${c.attempts_left === 1 ? "" : "s"} left)</button></div></form>`);
+  if (c.status === "OPEN" && now > c.deadline) out.push(`<button class="ghost" data-act="expire">Refund the brand (deadline passed)</button>`);
+  if (c.status === "LIVE") out.push(`<button class="${now >= c.live_until ? "" : "ghost"}" data-act="recheck">${now >= c.live_until ? "Recheck and settle" : "Recheck the post now"}</button>`);
+  if (recov > 0) out.push(`<form data-form="recover" class="row" style="align-items:end"><label>Recover ${gen(recov, 6)} GEN from a failed transfer, to<input name="to" pattern="0x[0-9a-fA-F]{40}" value="${esc(me)}" required></label><div><button>Recover</button></div></form>`);
+  return out.length ? `<div style="display:grid;gap:12px;margin-top:20px">${out.join("")}</div>` : "";
+}
+
+async function show(id) {
+  const c = items.find((x) => x.id === id);
+  if (!c) return;
+  const recov = me ? await sp.read("get_recoverable", [me]) : 0;
+  const mark = (i) => c.met.length ? (c.met[i] ? `<span class="tag ok">met</span>` : `<span class="tag bad">not met</span>`) : "";
+  const el = $("#detail");
+  el.hidden = false;
+  el.innerHTML = `<h2>${esc(c.title)} · campaign #${c.id} <span class="tag ${cls[c.status] || ""}">${esc(c.status.toLowerCase())}</span></h2>
+    ${c.brief ? `<blockquote style="margin:8px 0 12px;padding-left:12px;border-left:2px solid var(--fg)">${esc(c.brief)}</blockquote>` : ""}
+    <ol style="margin:8px 0 16px 20px">${c.requirements.map((r, i) => `<li>${esc(r)} ${mark(i)}</li>`).join("")}</ol>
+    <dl class="kv">
+      <div><dt>Brand</dt><dd>${addr(c.brand)}</dd></div>
+      <div><dt>Creator</dt><dd>${addr(c.creator)}</dd></div>
+      <div><dt>Fee</dt><dd>${gen(c.amount, 6)} GEN, ${gen(c.paid, 6)} GEN paid out</dd></div>
+      <div><dt>Campaign code</dt><dd class="mono">${esc(c.code)}</dd></div>
+      <div><dt>Hosts</dt><dd class="mono">${c.hosts.map(esc).join(", ")}</dd></div>
+      <div><dt>${c.status === "OPEN" ? "Submit by" : "Deadline"}</dt><dd>${when(c.deadline)} · ${c.attempts} of 3 attempts used</dd></div>
+      <div><dt>Live period</dt><dd>${c.live_until ? `until ${when(c.live_until)}` : `${c.live_days} days after approval`}</dd></div>
+      ${c.post_url ? `<div><dt>Post</dt><dd><a class="mono" href="${esc(c.post_url)}">${esc(c.post_url.replace(/^https:\/\//, "").slice(0, 50))}</a></dd></div>` : ""}
+      ${c.checks ? `<div><dt>Last check</dt><dd>${when(c.checked_at)} · ${esc(c.note)}</dd></div>` : ""}
+      ${c.post_sha256 ? `<div><dt>Post sha256</dt><dd class="mono" style="word-break:break-all">${esc(c.post_sha256)}</dd></div>` : ""}
+    </dl>
+    ${actions(c, recov)}`;
+  el.dataset.id = c.id;
+}
+
+$("#campaigns").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-id]"); if (tr && !e.target.closest("a[href^='http']")) { e.preventDefault(); history.replaceState(null, "", `#campaign-${tr.dataset.id}`); show(Number(tr.dataset.id)); $("#detail").scrollIntoView({ behavior: "smooth" }); } });
+$("#detail").addEventListener("click", async (e) => {
+  const fn = e.target.dataset?.act; if (!fn) return;
+  const id = Number($("#detail").dataset.id);
+  if (await send(sp, fn, fn, [id])) load(id);
+});
+$("#detail").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target, fn = f.dataset.form, id = Number($("#detail").dataset.id);
+  const args = fn === "recover" ? [f.to.value] : [id, f.url.value];
+  if (await send(sp, fn.replaceAll("_", " "), fn, args)) load(id);
+});
+$("#create").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target, hosts = lines(f.hosts.value).map((h) => h.replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
+  const args = [f.creator.value, f.title.value, f.brief.value, JSON.stringify(lines(f.reqs.value)), JSON.stringify(hosts), Number(f.submit.value), Number(f.live.value)];
+  if (await send(sp, "Start campaign", "create_campaign", args, toWei(f.fee.value))) { f.reset(); load(); }
+});
+wireWallet((a) => { me = a; const id = Number($("#detail").dataset.id); if (!Number.isNaN(id)) show(id); });
+load();
+</script>
+
+<footer><div class="w"><span>Built on <a href="https://genlayer.com">GenLayer</a></span><a href="docs.html">Docs</a><a href="https://github.com/cris-the-dev/genlayer-sponsorpay">Source</a></div></footer>
+<script>
+document.getElementById("sites").innerHTML=[["01","proofbounty"],["02","proofbounty-v2"],["03","ic-security-audit"],["04","oracle-kit"],["05","workshop"],["06","docs-security"],["07","rainfall-insurance"],["08","dealcourt"],["09","goalstake"],["10","mandateguard"],["11","slabond"],["12","attest"],["13","sponsorpay"],["14","modcourt"]]
+ .map(([n,s])=>`<a href="https://${s}.cristhedev.com"${s==="sponsorpay"?' aria-current="page"':""}>${n}</a>`).join("");
+</script>
+</body></html>
