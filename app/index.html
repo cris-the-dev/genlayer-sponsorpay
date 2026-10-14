@@ -5,7 +5,7 @@
 </head><body>
 <div class="bar"><div class="w"><span class="who">cristhedev <span style="color:var(--line)">/</span> genlayer builds</span><nav id="sites"></nav></div></div>
 <div class="head"><div class="w"><div><h1>SponsorPay</h1><p>Sponsored posts paid only if compliant and still up</p></div><button id="connect" class="ghost" type="button">Connect wallet</button></div></div>
-<div class="meta"><div class="w"><span>contract <a href="https://explorer-bradbury.genlayer.com/address/0x0000000000000000000000000000000000000000">0x0000…0000 ↗</a></span><span>network <b>testnet bradbury</b></span><span><a href="https://github.com/cris-the-dev/genlayer-sponsorpay">source ↗</a></span><span><a href="docs.html">docs →</a></span></div></div>
+<div class="meta"><div class="w"><span>contract <a href="https://explorer-bradbury.genlayer.com/address/0x554432E4BF66F35648fF9B87a1b739f5feAFa735">0x0000…0000 ↗</a></span><span>network <b>testnet bradbury</b></span><span><a href="https://github.com/cris-the-dev/genlayer-sponsorpay">source ↗</a></span><span><a href="docs.html">docs →</a></span></div></div>
 <main class="w">
   <p id="status" class="status" hidden></p>
   <div class="grid">
@@ -63,7 +63,7 @@
 
 <script type="module">
 import { contract, wireWallet, send, gen, toWei, esc, short, $, EXPLORER } from "./gl.js";
-const sp = contract("0x0000000000000000000000000000000000000000");
+const sp = contract("0x554432E4BF66F35648fF9B87a1b739f5feAFa735");
 let me = null, items = [];
 const when = (ts) => ts ? new Date(ts * 1000).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC" : "–";
 const addr = (a) => `<a class="mono" href="${EXPLORER}/address/${esc(a)}">${short(a)}</a>${me && a.toLowerCase() === me.toLowerCase() ? " (you)" : ""}`;

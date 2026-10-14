@@ -22,7 +22,7 @@ anyone  ── expire(id) after the deadline with no compliant post   ─▶ EXP
 ## Live deployment
 
 App: https://sponsorpay.cristhedev.com (campaigns, per-requirement results and every role's actions; source in [`app/`](app/))  
-Testnet Bradbury (chainId 4221): _not deployed yet_
+Testnet Bradbury (chainId 4221): [`0x554432E4BF66F35648fF9B87a1b739f5feAFa735`](https://explorer-bradbury.genlayer.com/address/0x554432E4BF66F35648fF9B87a1b739f5feAFa735)
 
 ## Consensus design
 
