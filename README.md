@@ -22,7 +22,26 @@ anyone  ── expire(id) after the deadline with no compliant post   ─▶ EXP
 ## Live deployment
 
 App: https://sponsorpay.cristhedev.com (campaigns, per-requirement results and every role's actions; source in [`app/`](app/))  
-Testnet Bradbury (chainId 4221): [`0x554432E4BF66F35648fF9B87a1b739f5feAFa735`](https://explorer-bradbury.genlayer.com/address/0x554432E4BF66F35648fF9B87a1b739f5feAFa735)
+Testnet Bradbury (chainId 4221): [`0x6116b695D019859d5fB8CBB55D5570503f560533`](https://explorer-bradbury.genlayer.com/address/0x6116b695D019859d5fB8CBB55D5570503f560533)
+
+## Bradbury evidence
+
+Run by [`tests/integration/test_sponsor_pay.py`](tests/integration/test_sponsor_pay.py) (1 passed, 34 min). Contract `0x6116b695D019859d5fB8CBB55D5570503f560533` (deploy [`0x1f5ea67b…`](https://explorer-bradbury.genlayer.com/tx/0x1f5ea67b62f987a2d9ccf37f8040901e061b7fcadf7efca51026675c2f3fd86c)), code `build/sponsor_pay.py` (sha256 `cd81258f…`). Brand and creator are separate accounts; the posts are the demo pages under `sponsorpay.cristhedev.com/demo/`.
+
+| Step | Transaction | Outcome |
+|---|---|---|
+| create campaign: fee 0.002 GEN, 3 requirements | [`0x88a3e99b…`](https://explorer-bradbury.genlayer.com/tx/0x88a3e99bbb7dde83900a6a942e1c0c4877752cd8ac422d4cc60988c3788aa605) | OPEN |
+| submit a post on example.com | [`0x2ecea87e…`](https://explorer-bradbury.genlayer.com/tx/0x2ecea87e862636a20ded3b686b6544b6bb7012bcfddd715d11eb4bcaae5a8f9b) | rejected: host not in the campaign |
+| submit `post-noad.html` | [`0x7db22d13…`](https://explorer-bradbury.genlayer.com/tx/0x7db22d13c51d7890de72dd0855f268250d39aa247eee8b4cc799cd4bd49b97ea) | validators agree `#ad` is missing: still OPEN, nothing paid |
+| submit `post-good.html` | [`0x7d0b3d13…`](https://explorer-bradbury.genlayer.com/tx/0x7d0b3d139a1d4c72ca62d8a132a30cb289b21c5ee2121d9962060cbea939d5cf) | all 3 met: LIVE, first half (payout 0) SENT to the creator |
+
+Each payout settled from its own transfer after the paying transaction finalized. Balance change is the recipient's `eth_getBalance` at the finalizing block minus the block before, checked by the test:
+
+| Payout | Kind | Paid by | Finalized by (block) | Recipient balance | `settle_payout` | Result |
+|---|---|---|---|---|---|---|
+| 0 | fee → creator | [`0x7d0b3d13…`](https://explorer-bradbury.genlayer.com/tx/0x7d0b3d139a1d4c72ca62d8a132a30cb289b21c5ee2121d9962060cbea939d5cf) | [`0x0021a7b2…`](https://explorer-bradbury.genlayer.com/tx/0x0021a7b292e27f02f3bbae9af9a68bcab11f5234407f37aa6be20b6783415c98) (25278435) | +0.001 GEN | [`0x088385e8…`](https://explorer-bradbury.genlayer.com/tx/0x088385e863598e3d969e3b4fc976fde54f1920d70f2cdcfac42ef6e0272bca40) | DELIVERED |
+
+Settling the same payout again is rejected ([`0x4618017a…`](https://explorer-bradbury.genlayer.com/tx/0x4618017aa00fb3db7e888130fdd2a34d40101d112464bcfcb0cfb29def5ecd78)). Afterwards `get_accounting` reports `unaccounted: 0`. The live period is at least a day, so completion and refunds are covered by the direct tests.
 
 ## Consensus design
 
@@ -55,13 +74,20 @@ Testnet Bradbury (chainId 4221): [`0x554432E4BF66F35648fF9B87a1b739f5feAFa735`](
 - After the live period, the first passing recheck completes the campaign;
   the creator has every reason to call it.
 
-## Payments and reconciliation
+## Payments and settlement
 
-Every transfer is a recorded payout and `expected_balance` tracks what the
-contract should hold. If a transfer is shown to have failed (the funds are
-still there after a 1-day settle window), anyone can call `reconcile_payout`
-and the amount becomes recoverable by its payee, who sends it anywhere with
-`recover`.
+Every transfer is a recorded payout, settled from its own transfer result:
+`settle_payout(payout_id, tx_hash, finalize_tx)` takes the GenLayer transaction
+that created the payout and the consensus-layer transaction that finalized it.
+Validators read both from the Bradbury RPC and check the sender, creation time,
+method and campaign id of the paying transaction, then whether the transfer
+was executed. Delivered payouts are marked `DELIVERED`; a failed one becomes
+`FAILED` and its amount recoverable by its payee, who sends it anywhere with
+`recover`. FAILED needs the messages contract's execution-failed event for
+that transaction, so a call that sent nothing settles nothing. A paying
+transaction settles at most one payout, and a sender can
+create one payout per second. `get_accounting` (balance vs. expected) is
+informational only and never decides a payout.
 
 ## API
 
@@ -71,7 +97,7 @@ and the amount becomes recoverable by its payee, who sends it anywhere with
 | `submit_post(id, url)` | creator | consensus check; ≤ 3 attempts before the deadline |
 | `recheck(id)` | anyone | LIVE only; may refund or complete |
 | `expire(id)` | anyone | OPEN after the deadline |
-| `reconcile_payout(payout_id)` / `recover(to)` | anyone / payee | failed transfers |
+| `settle_payout(payout_id, tx_hash, finalize_tx)` / `recover(to)` | anyone / payee | settle a transfer from its own result; re-send a failed one |
 | `get_campaign`, `get_count`, `get_payout`, `get_accounting`, `get_recoverable` | view | |
 
 ## Run
@@ -80,22 +106,22 @@ and the amount becomes recoverable by its payee, who sends it anywhere with
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 genvm-lint check contracts/sponsor_pay.py
-pytest tests/direct -v                         # 37 tests
+pytest tests/direct -v                         # 49 tests
 # integration, on Bradbury, against the packed code (keys in GL_PK0..2 env vars)
 python deploy/shrink.py contracts/sponsor_pay.py build/sponsor_pay.py --pack
 cd tests/integration && gltest . -v -s --network testnet_bradbury
 ```
 
 Bradbury rejects deploys above ~20 KB of code; deploy the output of
-`deploy/shrink.py` (AST-checked, 18.2 KB → 5.6 KB packed). CI re-runs all
+`deploy/shrink.py` (AST-checked, 26.3 KB → 7.8 KB packed). CI re-runs all
 direct tests against the packed code.
 
 `demo/post-good.html` and `demo/post-noad.html` are the demo posts (served
 from `sponsorpay.cristhedev.com/demo/` with `__CODE__` replaced).
 
-## Tests (37 direct)
+## Tests (49 direct, Bradbury E2E)
 
-- **Lifecycle** — create and its validation; a compliant post pays half; failed attempts (requirement not met, code missing, 404) then a full refund; submit guards (outsider, http, foreign and look-alike hosts; subdomains allowed); deadline and expire; unchanged recheck skips the LLM; completion pays the rest; a compliant edit passes; removed, code gone or a broken requirement refunds the rest; 503/429/403 change nothing; failed transfer reconciled and recovered once; delivered transfer cannot be reconciled.
+- **Lifecycle** — create and its validation; a compliant post pays half; failed attempts (requirement not met, code missing, 404) then a full refund; submit guards (outsider, http, foreign and look-alike hosts; subdomains allowed); deadline and expire; unchanged recheck skips the LLM; completion pays the rest; a compliant edit passes; removed, code gone or a broken requirement refunds the rest; 503/429/403 change nothing; each payout settled from its own transfer: delivered, or failed and recoverable (a failed recovery returns to its owner); settle rejects another transaction, sender, time, method or campaign, an unfinalized transaction, another finalization, bad hashes and an unavailable RPC; one payment per sender per second.
 - **Consensus (validator replay)** — agrees with an honest leader; every requirement must match; rejects forged payloads and a leader that ignores the campaign code; `unchanged` vs `ok` agree; errors agree only when identical; malformed LLM output reverts; the post is fenced.
 
 ## License

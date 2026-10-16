@@ -5,7 +5,7 @@
 </head><body>
 <div class="bar"><div class="w"><span class="who">cristhedev <span style="color:var(--line)">/</span> genlayer builds</span><nav id="sites"></nav></div></div>
 <div class="head"><div class="w"><div><h1>SponsorPay</h1><p>Sponsored posts paid only if compliant and still up</p></div><button id="connect" class="ghost" type="button">Connect wallet</button></div></div>
-<div class="meta"><div class="w"><span>contract <a href="https://explorer-bradbury.genlayer.com/address/0x554432E4BF66F35648fF9B87a1b739f5feAFa735">0x0000…0000 ↗</a></span><span>network <b>testnet bradbury</b></span><span><a href="https://github.com/cris-the-dev/genlayer-sponsorpay">source ↗</a></span><span><a href="docs.html">docs →</a></span></div></div>
+<div class="meta"><div class="w"><span>contract <a href="https://explorer-bradbury.genlayer.com/address/0x6116b695D019859d5fB8CBB55D5570503f560533">0x6116…0533 ↗</a></span><span>network <b>testnet bradbury</b></span><span><a href="https://github.com/cris-the-dev/genlayer-sponsorpay">source ↗</a></span><span><a href="docs.html">docs →</a></span></div></div>
 <main class="w">
   <p id="status" class="status" hidden></p>
   <div class="grid">
@@ -63,7 +63,7 @@
 
 <script type="module">
 import { contract, wireWallet, send, gen, toWei, esc, short, $, EXPLORER } from "./gl.js";
-const sp = contract("0x554432E4BF66F35648fF9B87a1b739f5feAFa735");
+const sp = contract("0x6116b695D019859d5fB8CBB55D5570503f560533");
 let me = null, items = [];
 const when = (ts) => ts ? new Date(ts * 1000).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC" : "–";
 const addr = (a) => `<a class="mono" href="${EXPLORER}/address/${esc(a)}">${short(a)}</a>${me && a.toLowerCase() === me.toLowerCase() ? " (you)" : ""}`;
@@ -102,6 +102,9 @@ async function show(id) {
   const c = items.find((x) => x.id === id);
   if (!c) return;
   const recov = me ? await sp.read("get_recoverable", [me]) : 0;
+  const n = (await sp.read("get_accounting")).payout_count;
+  const pays = (await Promise.all(Array.from({ length: n }, (_, i) => sp.read("get_payout", [i]).then((p) => ({ ...p, id: i }))))).filter((p) => p.kind === "recover" ? me && p.sender.toLowerCase() === me.toLowerCase() : p.campaign_id === c.id);
+  const xfer = (p) => `<span class="tag ${p.status === "FAILED" ? "bad" : ""}">${{ FAILED: "failed, restored", DELIVERED: "delivered" }[p.status] || "sent"}</span>${me && p.status === "SENT" ? ` <button class="ghost" data-act="settle_payout" data-arg="${p.id}" title="Settle from this transfer's result once the paying transaction is finalized">Settle</button>` : ""}`;
   const mark = (i) => c.met.length ? (c.met[i] ? `<span class="tag ok">met</span>` : `<span class="tag bad">not met</span>`) : "";
   const el = $("#detail");
   el.hidden = false;
@@ -120,6 +123,8 @@ async function show(id) {
       ${c.checks ? `<div><dt>Last check</dt><dd>${when(c.checked_at)} · ${esc(c.note)}</dd></div>` : ""}
       ${c.post_sha256 ? `<div><dt>Post sha256</dt><dd class="mono" style="word-break:break-all">${esc(c.post_sha256)}</dd></div>` : ""}
     </dl>
+    ${pays.length ? `<h2 style="margin-top:24px">Payouts</h2><div class="tbl"><table><thead><tr><th>Kind</th><th>To</th><th class="r">Amount</th><th>Transfer</th></tr></thead><tbody>
+      ${pays.map((p) => `<tr><td>${esc(p.kind)}</td><td>${addr(p.to)}</td><td class="r num">${gen(p.amount, 6)}</td><td>${xfer(p)}</td></tr>`).join("")}</tbody></table></div>` : ""}
     ${actions(c, recov)}`;
   el.dataset.id = c.id;
 }
@@ -128,7 +133,13 @@ $("#campaigns").addEventListener("click", (e) => { const tr = e.target.closest("
 $("#detail").addEventListener("click", async (e) => {
   const fn = e.target.dataset?.act; if (!fn) return;
   const id = Number($("#detail").dataset.id);
-  if (await send(sp, fn, fn, [id])) load(id);
+  let args = [id];
+  if (fn === "settle_payout") {
+    const tx = prompt("GenLayer transaction that made this payment (0x…)"), fin = tx && prompt("Consensus-layer transaction that finalized it (0x…)");
+    if (!fin) return;
+    args = [Number(e.target.dataset.arg), tx.trim(), fin.trim()];
+  }
+  if (await send(sp, fn.replaceAll("_", " "), fn, args)) load(id);
 });
 $("#detail").addEventListener("submit", async (e) => {
   e.preventDefault();

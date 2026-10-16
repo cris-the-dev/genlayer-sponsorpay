@@ -140,25 +140,110 @@ def test_recheck_needs_a_live_campaign(sp, direct_vm, direct_charlie):
         sp.get_campaign(3)
 
 
-def test_failed_transfer_reconciled_and_recovered(live, direct_vm, direct_bob, direct_charlie, ledger):
-    chain_balance(direct_vm, FEE)  # the half-fee transfer to Bob did not leave
+# ── Each payout settles from its own transfer ───────────────────────────────
+
+OTHER = "0x" + "77" * 20
+
+
+def test_delivered_fee_settles(live, direct_vm, direct_charlie, chain):
+    tx, fin = chain.pay(live, 0, "submit_post", [0, URL])
     direct_vm.sender = direct_charlie
-    with direct_vm.expect_revert("still be settling"):
-        live.reconcile_payout(0)
-    direct_vm.warp("2030-01-02T10:00:01Z")
-    live.reconcile_payout(0)
-    assert live.get_payout(0)["status"] == "FAILED" and live.get_recoverable(to_hex(direct_bob)) == FEE // 2
-    with direct_vm.expect_revert("already reconciled"):
-        live.reconcile_payout(0)
+    assert live.settle_payout(0, tx, fin) == "DELIVERED"
+    assert live.get_payout(0)["tx"] == tx
+    assert direct_vm.run_validator(leader_result="failed") is False
+    with direct_vm.expect_revert("already settled"):
+        live.settle_payout(0, tx, fin)
+    with direct_vm.expect_revert("payout not found"):
+        live.settle_payout(5, tx, fin)
+
+
+def test_failed_fee_is_recovered_by_the_creator_to_another_address(live, direct_vm, direct_bob, chain, ledger):
+    tx, fin = chain.pay(live, 0, "submit_post", [0, URL], delivered=False)
+    assert live.settle_payout(0, tx, fin) == "FAILED"
+    assert live.get_recoverable(to_hex(direct_bob)) == FEE // 2
+    assert live.get_accounting()["expected_balance"] == FEE
+    direct_vm.warp("2030-01-01T10:00:05Z")
     direct_vm.sender = direct_bob
-    live.recover(to_hex(direct_charlie))
-    assert ledger.paid_to(direct_charlie) == FEE // 2
+    assert live.recover(OTHER) == FEE // 2
+    assert ledger.paid_to(OTHER) == FEE // 2
     with direct_vm.expect_revert("nothing to recover"):
-        live.recover(to_hex(direct_bob))
+        live.recover(OTHER)
+    # The recovery is a payout too, and a failed one is recoverable again by Bob.
+    tx2, fin2 = chain.pay(live, 1, "recover", [OTHER], delivered=False)
+    assert live.settle_payout(1, tx2, fin2) == "FAILED"
+    assert live.get_recoverable(to_hex(direct_bob)) == FEE // 2 and live.get_recoverable(OTHER) == 0
 
 
-def test_delivered_transfer_cannot_be_reconciled(live, direct_vm, direct_charlie):
-    direct_vm.warp("2030-01-03T10:00:00Z")
+def test_failed_refund_is_recoverable_by_the_brand(live, direct_vm, direct_alice, direct_charlie, chain):
+    post(direct_vm, status=404)
+    direct_vm.warp("2030-01-06T10:00:00Z")
     direct_vm.sender = direct_charlie
-    with direct_vm.expect_revert("transfer delivered"):
-        live.reconcile_payout(0)
+    live.recheck(0)
+    tx, fin = chain.pay(live, 1, "recheck", [0], delivered=False)
+    assert live.settle_payout(1, tx, fin) == "FAILED"
+    assert live.get_recoverable(to_hex(direct_alice)) == FEE // 2
+    assert live.get_recoverable(to_hex(direct_charlie)) == 0
+
+
+def test_expire_payout_settles(sp, direct_vm, direct_charlie, chain):
+    direct_vm.warp("2030-01-09T10:00:00Z")
+    direct_vm.sender = direct_charlie
+    sp.expire(0)
+    tx, fin = chain.pay(sp, 0, "expire", [0])
+    assert sp.settle_payout(0, tx, fin) == "DELIVERED"
+
+
+@pytest.mark.parametrize(
+    "kw,err",
+    [
+        ({"method": "expire"}, "did not create this payout"),  # a fee is not made by expire
+        ({"args": [1, URL]}, "did not create this payout"),
+        ({"sender": "0x" + "99" * 20}, "did not create this payout"),
+        ({"at": 1}, "did not create this payout"),
+        ({"result": 2}, "did not create this payout"),
+        ({"status": 5}, "not finalized yet"),
+        # same sender, second, method and id, but it sent nothing (a call that did not pay)
+        ({"delivered": None}, "did not create this payout"),
+    ],
+)
+def test_settle_rejects_a_transaction_that_is_not_this_payout(kw, err, live, direct_vm, chain):
+    method, args = kw.pop("method", "submit_post"), kw.pop("args", [0, URL])
+    tx, fin = chain.pay(live, 0, method, args, **{"delivered": False, **kw})
+    with direct_vm.expect_revert(err):
+        live.settle_payout(0, tx, fin)
+    assert live.get_payout(0)["status"] == "SENT"
+
+
+def test_a_paying_transaction_settles_one_payout(live, direct_vm, direct_bob, chain):
+    tx, fin = chain.pay(live, 0, "submit_post", [0, URL])
+    live.settle_payout(0, tx, fin)
+    direct_vm.sender = direct_bob
+    post(direct_vm, status=404)
+    direct_vm.warp("2030-01-06T10:00:00Z")
+    live.recheck(0)
+    with direct_vm.expect_revert("already settled a payout"):
+        live.settle_payout(1, tx, fin)
+
+
+def test_settle_needs_the_finalization_of_that_transaction(live, direct_vm, chain):
+    tx, _ = chain.pay(live, 0, "submit_post", [0, URL], delivered=False)
+    _, other_fin = chain.pay(live, 0, "submit_post", [0, URL])
+    with direct_vm.expect_revert("not the finalization"):
+        live.settle_payout(0, tx, other_fin)
+    with direct_vm.expect_revert("not found"):
+        live.settle_payout(0, tx, "0x" + "ab" * 32)
+    with direct_vm.expect_revert("0x + 64 hex"):
+        live.settle_payout(0, tx, "latest")
+    chain.down = True
+    with direct_vm.expect_revert("RPC unavailable"):
+        live.settle_payout(0, tx, other_fin)
+
+
+def test_one_payment_per_sender_per_second(live, direct_vm, direct_bob, direct_charlie):
+    post(direct_vm, status=404)  # Bob's fee was paid at this second
+    direct_vm.sender = direct_bob
+    with direct_vm.expect_revert("one payment per sender per second"):
+        live.recheck(0)
+    direct_vm.sender = direct_charlie  # another sender is a different key
+    live.recheck(0)
+    assert live.get_payout(1)["sender"].lower() == to_hex(direct_charlie).lower()
