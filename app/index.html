@@ -4,31 +4,29 @@
 <link rel="stylesheet" href="app.css"><link rel="icon" href="logo.svg" type="image/svg+xml">
 </head><body>
 <div class="bar"><div class="w"><span class="who">cristhedev <span style="color:var(--line)">/</span> genlayer builds</span><nav id="sites"></nav></div></div>
-<header class="mast"><div class="w">
-  <div class="top"><span class="live">Campaigns open · Testnet Bradbury</span>
-    <div class="links">
-      <a href="https://explorer-bradbury.genlayer.com/address/0x6116b695D019859d5fB8CBB55D5570503f560533">Contract 0x6116…0533 ↗</a>
-      <a href="https://github.com/cris-the-dev/genlayer-sponsorpay">Source ↗</a>
-      <a href="docs.html">Docs</a>
-      <button id="connect" type="button">Connect wallet</button>
-    </div></div>
-  <div class="title">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><use href="logo.svg#m"/></svg>
-    <h1>Sponsor<em>Pay</em></h1>
-    <p>Sponsored posts paid only if compliant and still up. GenLayer validators read the post, not the screenshot.</p>
-  </div>
+<header class="nav"><div class="w">
+  <a class="brand" href="./"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="logo.svg#m"/></svg>SponsorPay</a>
+  <nav class="links"><a href="#campaigns-list">Campaigns</a><a href="#how">How it works</a><a href="docs.html">Docs</a><a href="https://github.com/cris-the-dev/genlayer-sponsorpay">GitHub ↗</a></nav>
+  <div class="end"><span class="net">Bradbury testnet</span><button id="connect" type="button" class="ghost">Connect wallet</button></div>
 </div></header>
-<div class="tape" aria-hidden="true"><div><span>#ad disclosed</span><i>✦</i><span>Paid on proof</span><i>✦</i><span>Still up or refunded</span><i>✦</i><span>Validators read the post</span><i>✦</i><span>#ad disclosed</span><i>✦</i><span>Paid on proof</span><i>✦</i><span>Still up or refunded</span><i>✦</i><span>Validators read the post</span><i>✦</i><span>#ad disclosed</span><i>✦</i><span>Paid on proof</span><i>✦</i><span>Still up or refunded</span><i>✦</i><span>Validators read the post</span><i>✦</i><span>#ad disclosed</span><i>✦</i><span>Paid on proof</span><i>✦</i><span>Still up or refunded</span><i>✦</i><span>Validators read the post</span><i>✦</i></div></div>
-<div class="w"><div class="stats" id="stats">
-    <div class="stat"><b>–</b><span>Campaigns</span></div><div class="stat"><b>–</b><span>Live now</span></div>
-    <div class="stat"><b>–</b><span>In escrow (GEN)</span></div><div class="stat"><b>–</b><span>Paid out (GEN)</span></div>
-  </div></div>
+<section class="hero"><div class="w">
+  <div>
+    <h1>Pay creators for sponsored posts that stay compliant.</h1>
+    <p>Escrow the fee with your brief. GenLayer validators read the live post and check every requirement: half is paid on approval, the rest once the post has stayed up. Deleted or edited out of compliance, the brand gets it back.</p>
+    <div class="cta"><a class="btn" href="#new">Start a campaign</a><a class="btn ghost" href="#how">How it works</a>
+      <span class="contract">Contract <a class="mono" href="https://explorer-bradbury.genlayer.com/address/0x6116b695D019859d5fB8CBB55D5570503f560533">0x6116…0533 ↗</a></span></div>
+  </div>
+  <div class="stats" id="stats">
+    <div class="stat"><span>Campaigns</span><b>–</b></div><div class="stat"><span>Live now</span><b>–</b></div>
+    <div class="stat"><span>In escrow</span><b>–</b><small>GEN</small></div><div class="stat"><span>Paid out</span><b>–</b><small>GEN</small></div>
+  </div>
+</div></section>
 <main class="w">
   <p id="status" class="status" hidden></p>
   <div class="grid">
     <div>
-      <section>
-        <p class="label">The feed · <b>pick a campaign</b></p>
+      <section id="campaigns-list">
+        <div class="head"><h2>Campaigns</h2><span class="hint">Select one to see its brief, checks and payouts</span></div>
         <div class="tbl"><table>
           <thead><tr><th>#</th><th>Campaign</th><th>Creator</th><th class="r">Fee</th><th class="r">Paid</th><th>Status</th></tr></thead>
           <tbody id="campaigns"><tr><td colspan="6" class="empty">Reading the contract…</td></tr></tbody>
@@ -38,21 +36,9 @@
     </div>
 
     <aside>
-      <section>
-        <p class="label">Rules of the deal</p>
-        <dl class="kv card">
-          <div><dt>Campaign code</dt><dd>the post must contain <span class="mono">sponsorpay-&lt;id&gt;</span></dd></div>
-          <div><dt>Validators judge</dt><dd>each requirement, met or not</dd></div>
-          <div><dt>Validators agree if</dt><dd>the same answer for every requirement</dd></div>
-          <div><dt>All met</dt><dd>half the fee now, the live period starts</dd></div>
-          <div><dt>Attempts</dt><dd>3 before the deadline, then the brand is refunded</dd></div>
-          <div><dt>Recheck</dt><dd>anyone; removed or broken post refunds the brand, a pass after the live period pays the rest</dd></div>
-          <div><dt>Outage</dt><dd>an unreachable post reverts, it never pays or refunds</dd></div>
-        </dl>
-      </section>
       <section class="card">
-        <details>
-          <summary>Start a campaign</summary>
+        <details id="new">
+          <summary>New campaign<small>Escrow a fee for one creator</small></summary>
           <form id="create">
             <label>Creator address<input name="creator" pattern="0x[0-9a-fA-F]{40}" required></label>
             <label>Title<input name="title" minlength="3" maxlength="80" required></label>
@@ -68,15 +54,27 @@
           </form>
         </details>
       </section>
-    </aside>
+          <section>
+        <h2>Rules</h2>
+        <dl class="kv card">
+          <div><dt>Campaign code</dt><dd>the post must contain <span class="mono">sponsorpay-&lt;id&gt;</span></dd></div>
+          <div><dt>Validators judge</dt><dd>each requirement, met or not</dd></div>
+          <div><dt>Validators agree if</dt><dd>the same answer for every requirement</dd></div>
+          <div><dt>All met</dt><dd>half the fee now, the live period starts</dd></div>
+          <div><dt>Attempts</dt><dd>3 before the deadline, then the brand is refunded</dd></div>
+          <div><dt>Recheck</dt><dd>anyone; removed or broken post refunds the brand, a pass after the live period pays the rest</dd></div>
+          <div><dt>Outage</dt><dd>an unreachable post reverts, it never pays or refunds</dd></div>
+        </dl>
+      </section>
+</aside>
   </div>
 </main>
 
-<div class="steps"><ol>
+<section class="steps" id="how"><div class="w"><h2>How it works</h2><ol>
   <li><small>01</small><b>Brief</b><p>The brand names a creator, writes the requirements and escrows the fee. Nothing is paid until a post passes.</p></li>
   <li><small>02</small><b>Post</b><p>The creator publishes with the campaign code and submits the link. Validators check every requirement; all met pays half.</p></li>
   <li><small>03</small><b>Stay up</b><p>Anyone can recheck during the live period. Removed or edited out of compliance: the brand gets the rest back. Still up at the end: the creator does.</p></li>
-</ol></div>
+</ol></div></section>
 
 <script type="module">
 import { contract, wireWallet, send, gen, toWei, esc, short, $, EXPLORER } from "./gl.js";
@@ -124,14 +122,16 @@ async function show(id) {
   const recov = me ? await sp.read("get_recoverable", [me]) : 0;
   const n = (await sp.read("get_accounting")).payout_count;
   const pays = (await Promise.all(Array.from({ length: n }, (_, i) => sp.read("get_payout", [i]).then((p) => ({ ...p, id: i }))))).filter((p) => p.kind === "recover" ? me && p.sender.toLowerCase() === me.toLowerCase() : p.campaign_id === c.id);
-  const xfer = (p) => `<span class="tag ${p.status === "FAILED" ? "bad" : ""}">${{ FAILED: "failed, restored", DELIVERED: "delivered" }[p.status] || "sent"}</span>${me && p.status === "SENT" ? ` <button class="ghost" data-act="settle_payout" data-arg="${p.id}" title="Settle from this transfer's result once the paying transaction is finalized">Settle</button>` : ""}`;
+  const xfer = (p) => `<span class="tag ${{ FAILED: "bad", DELIVERED: "ok" }[p.status] || ""}">${{ FAILED: "failed, restored", DELIVERED: "delivered" }[p.status] || "sent"}</span>${me && p.status === "SENT" ? ` <button class="ghost" data-act="settle_payout" data-arg="${p.id}" title="Settle from this transfer's result once the paying transaction is finalized">Settle</button>` : ""}`;
   const mark = (i) => c.met.length ? (c.met[i] ? ` class="met"` : ` class="miss"`) : "";
   const el = $("#detail");
   el.hidden = false;
-  el.innerHTML = `<h2><small>Campaign ${c.id} · the brief</small>${esc(c.title)} <span class="tag ${cls[c.status] || ""}">${esc(c.status.toLowerCase())}</span></h2>
+  const pct = c.amount ? Math.round(c.paid / c.amount * 100) : 0;
+  el.innerHTML = `<div class="dhead"><div><small>Campaign #${c.id}</small><h2>${esc(c.title)}</h2></div><span class="tag ${cls[c.status] || ""}">${esc(c.status.toLowerCase())}</span></div>
+    <div class="prog"><div><i style="width:${pct}%"></i></div><span>${gen(c.paid, 6)} of ${gen(c.amount, 6)} GEN released</span></div>
     ${c.brief ? `<p class="brief">${esc(c.brief)}</p>` : ""}
-    <ol class="reqs">${c.requirements.map((r, i) => `<li${mark(i)}>${esc(r)}</li>`).join("")}</ol>
-    <dl class="kv">
+    <h3>Requirements</h3><ol class="reqs">${c.requirements.map((r, i) => `<li${mark(i)}>${esc(r)}</li>`).join("")}</ol>
+    <h3>Details</h3><dl class="kv">
       <div><dt>Brand</dt><dd>${addr(c.brand)}</dd></div>
       <div><dt>Creator</dt><dd>${addr(c.creator)}</dd></div>
       <div><dt>Fee</dt><dd>${gen(c.amount, 6)} GEN, ${gen(c.paid, 6)} GEN paid out</dd></div>
@@ -174,6 +174,7 @@ $("#create").addEventListener("submit", async (e) => {
   const args = [f.creator.value, f.title.value, f.brief.value, JSON.stringify(lines(f.reqs.value)), JSON.stringify(hosts), Number(f.submit.value), Number(f.live.value)];
   if (await send(sp, "Start campaign", "create_campaign", args, toWei(f.fee.value))) { f.reset(); load(); }
 });
+document.querySelectorAll('a[href="#new"]').forEach((a) => a.addEventListener("click", () => { $("#new").open = true; }));
 wireWallet((a) => { me = a; const id = Number($("#detail").dataset.id); if (!Number.isNaN(id)) show(id); });
 load();
 </script>
