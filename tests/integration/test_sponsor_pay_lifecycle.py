@@ -27,7 +27,7 @@ from gltest import get_accounts
 
 from .bradbury import attach, ok, reverted, send, settle, view
 
-ADDRESS = "0xBB7C6c404A3D415CD61b7c6bc3168F1DDb928509"
+ADDRESS = "0x899d4273e006D9B774704DA8c3f313Af3E87f4F8"
 FEE = 2 * 10**15
 REQS = ["Discloses the sponsorship with #ad", "Mentions the GenLayer Builder Kit", "Points readers to genlayer.com"]
 HOSTS = json.dumps(["sponsorpay.cristhedev.com"])

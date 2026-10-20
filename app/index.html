@@ -14,7 +14,7 @@
     <h1>Pay creators for sponsored posts that stay compliant.</h1>
     <p>Escrow the fee with your brief. GenLayer validators read the live post and check every requirement: half is paid on approval, the rest once the post has stayed up. Deleted or edited out of compliance, the brand gets it back.</p>
     <div class="cta"><a class="btn" href="#new">Start a campaign</a><a class="btn ghost" href="#how">How it works</a>
-      <span class="contract">Contract <a class="mono" href="https://explorer-bradbury.genlayer.com/address/0x6116b695D019859d5fB8CBB55D5570503f560533">0x6116…0533 ↗</a></span></div>
+      <span class="contract">Contract <a class="mono" href="https://explorer-bradbury.genlayer.com/address/0x899d4273e006D9B774704DA8c3f313Af3E87f4F8">0x899d…f4F8 ↗</a></span></div>
   </div>
   <div class="stats" id="stats">
     <div class="stat"><span>Campaigns</span><b>–</b></div><div class="stat"><span>Live now</span><b>–</b></div>
@@ -78,7 +78,7 @@
 
 <script type="module">
 import { contract, wireWallet, send, gen, toWei, esc, short, $, EXPLORER } from "./gl.js";
-const sp = contract("0x6116b695D019859d5fB8CBB55D5570503f560533");
+const sp = contract("0x899d4273e006D9B774704DA8c3f313Af3E87f4F8");
 let me = null, items = [];
 const when = (ts) => ts ? new Date(ts * 1000).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC" : "–";
 const addr = (a) => `<a class="mono" href="${EXPLORER}/address/${esc(a)}">${short(a)}</a>${me && a.toLowerCase() === me.toLowerCase() ? " (you)" : ""}`;

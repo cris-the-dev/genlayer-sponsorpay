@@ -72,6 +72,26 @@ def _post(*args, **kwargs):
 provider_module.requests = type("requests", (), {"post": staticmethod(_post), "exceptions": requests.exceptions})
 
 
+# A busy node rejects a transaction with "gas rate limit exceeded" (-32005), or
+# cannot reach its sequencer (-32603 "error sending request"); the same signed
+# transaction is sent again.
+_make_request = provider_module.GenLayerProvider.make_request
+
+
+def _make_request_patient(self, method, params):
+    for attempt in range(10):
+        try:
+            return _make_request(self, method, params)
+        except GenLayerError as e:
+            busy = "code=-32005" in str(e) or "error sending request" in str(e)
+            if not busy or attempt == 9:
+                raise
+            time.sleep(5)
+
+
+provider_module.GenLayerProvider.make_request = _make_request_patient
+
+
 # Its receipt polling also reads logs at a block another RPC node reported, and the
 # answering node can lag: "block not found" is retried instead of failing the wait.
 _get_transaction = GenLayerClient.get_transaction

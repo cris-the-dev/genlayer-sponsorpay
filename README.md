@@ -22,56 +22,52 @@ anyone  ── expire(id) after the deadline with no compliant post   ─▶ EXP
 ## Live deployment
 
 App: https://sponsorpay.cristhedev.com (campaigns, per-requirement results and every role's actions; source in [`app/`](app/))  
-Testnet Bradbury (chainId 4221): [`0x6116b695D019859d5fB8CBB55D5570503f560533`](https://explorer-bradbury.genlayer.com/address/0x6116b695D019859d5fB8CBB55D5570503f560533)
+Testnet Bradbury (chainId 4221): [`0x899d4273e006D9B774704DA8c3f313Af3E87f4F8`](https://explorer-bradbury.genlayer.com/address/0x899d4273e006D9B774704DA8c3f313Af3E87f4F8)
 
 ## Bradbury evidence
 
-Run by [`tests/integration/test_sponsor_pay.py`](tests/integration/test_sponsor_pay.py) (1 passed, 34 min). Contract `0x6116b695D019859d5fB8CBB55D5570503f560533` (deploy [`0x1f5ea67b…`](https://explorer-bradbury.genlayer.com/tx/0x1f5ea67b62f987a2d9ccf37f8040901e061b7fcadf7efca51026675c2f3fd86c)), code `build/sponsor_pay.py` (sha256 `cd81258f…`). Brand and creator are separate accounts; the posts are the demo pages under `sponsorpay.cristhedev.com/demo/`.
+Run by [`tests/integration/test_sponsor_pay.py`](tests/integration/test_sponsor_pay.py) (1 passed, 37 min). Contract `0x899d4273e006D9B774704DA8c3f313Af3E87f4F8` (deploy [`0x47a79222…`](https://explorer-bradbury.genlayer.com/tx/0x47a7922289999dd09f2ee49c0de4fd679b986e9e7ceaa41b7885a04f50676d94)), code `build/sponsor_pay.py` (sha256 `e5582ac1…`). Brand and creator are separate accounts; the posts are the demo pages under `sponsorpay.cristhedev.com/demo/`.
 
 | Step | Transaction | Outcome |
 |---|---|---|
-| create campaign: fee 0.002 GEN, 3 requirements | [`0x88a3e99b…`](https://explorer-bradbury.genlayer.com/tx/0x88a3e99bbb7dde83900a6a942e1c0c4877752cd8ac422d4cc60988c3788aa605) | OPEN |
-| submit a post on example.com | [`0x2ecea87e…`](https://explorer-bradbury.genlayer.com/tx/0x2ecea87e862636a20ded3b686b6544b6bb7012bcfddd715d11eb4bcaae5a8f9b) | rejected: host not in the campaign |
-| submit `post-noad.html` | [`0x7db22d13…`](https://explorer-bradbury.genlayer.com/tx/0x7db22d13c51d7890de72dd0855f268250d39aa247eee8b4cc799cd4bd49b97ea) | validators agree `#ad` is missing: still OPEN, nothing paid |
-| submit `post-good.html` | [`0x7d0b3d13…`](https://explorer-bradbury.genlayer.com/tx/0x7d0b3d139a1d4c72ca62d8a132a30cb289b21c5ee2121d9962060cbea939d5cf) | all 3 met: LIVE, first half (payout 0) SENT to the creator |
+| create campaign: fee 0.002 GEN, 3 requirements | [`0xe4798e30…`](https://explorer-bradbury.genlayer.com/tx/0xe4798e30511ac7bde6f212982b2d8bc97bbb68901b6094b83e0676e2415be4d0) | OPEN |
+| submit a post on example.com | [`0xad489d79…`](https://explorer-bradbury.genlayer.com/tx/0xad489d7924f6259d2764303a7a4bc1b59b57a1d7ba3eb8477bd5cf8f6a4acf12) | rejected: host not in the campaign |
+| submit `post-noad.html` | [`0x2e3c7fe8…`](https://explorer-bradbury.genlayer.com/tx/0x2e3c7fe867c1da202ff83c7860bc11074a35ca86b3ad1d62e1fa6ca6530a7842) | validators agree `#ad` is missing: still OPEN, nothing paid |
+| submit `post-good.html` | [`0x877b9d39…`](https://explorer-bradbury.genlayer.com/tx/0x877b9d397f4b1cd818e0bd00f714c7ea459383d5f7d6ff0856825be5939b7315) | all 3 met, each with a quote from the post: LIVE, first half (payout 0) SENT to the creator |
 
 Each payout settled from its own transfer after the paying transaction finalized. Balance change is the recipient's `eth_getBalance` at the finalizing block minus the block before, checked by the test:
 
 | Payout | Kind | Paid by | Finalized by (block) | Recipient balance | `settle_payout` | Result |
 |---|---|---|---|---|---|---|
-| 0 | fee → creator | [`0x7d0b3d13…`](https://explorer-bradbury.genlayer.com/tx/0x7d0b3d139a1d4c72ca62d8a132a30cb289b21c5ee2121d9962060cbea939d5cf) | [`0x0021a7b2…`](https://explorer-bradbury.genlayer.com/tx/0x0021a7b292e27f02f3bbae9af9a68bcab11f5234407f37aa6be20b6783415c98) (25278435) | +0.001 GEN | [`0x088385e8…`](https://explorer-bradbury.genlayer.com/tx/0x088385e863598e3d969e3b4fc976fde54f1920d70f2cdcfac42ef6e0272bca40) | DELIVERED |
+| 0 | fee → creator | [`0x877b9d39…`](https://explorer-bradbury.genlayer.com/tx/0x877b9d397f4b1cd818e0bd00f714c7ea459383d5f7d6ff0856825be5939b7315) | [`0xd2f63bb8…`](https://explorer-bradbury.genlayer.com/tx/0xd2f63bb87c61e51951948a9e19eb6faab89301f9c04e7fb5e1721c3a1a86680a) (25594808) | +0.001 GEN | [`0x5820bf05…`](https://explorer-bradbury.genlayer.com/tx/0x5820bf050fb6b1b8b50aadb9ea3fbd3d803135041db77ce089df81b052a404d9) | DELIVERED |
 
-Settling the same payout again is rejected ([`0x4618017a…`](https://explorer-bradbury.genlayer.com/tx/0x4618017aa00fb3db7e888130fdd2a34d40101d112464bcfcb0cfb29def5ecd78)). Afterwards `get_accounting` reports `unaccounted: 0`. The lifecycle below covers completion and refunds.
+Settling the same payout again is rejected ([`0xeaec4e24…`](https://explorer-bradbury.genlayer.com/tx/0xeaec4e24d86ab3a15b8eb11910aacbab9f08f15716e46c30e3a2f68247b39e73)). The lifecycle below covers refunds, expiry and completion.
 
-### Completion, refunds and expiry
+### Refunds, expiry and completion
 
-Run by [`tests/integration/test_sponsor_pay_lifecycle.py`](tests/integration/test_sponsor_pay_lifecycle.py) on the same contract (campaigns 4 and 5 by the full run; campaign 0's completion and payouts 1–3 by an earlier run of it).
+Run by [`tests/integration/test_sponsor_pay_lifecycle.py`](tests/integration/test_sponsor_pay_lifecycle.py) on the same contract (campaigns 1 and 2).
 
 | Step | Transaction | Outcome |
 |---|---|---|
-| campaign 0, live period over: recheck | [`0x45313e6e…`](https://explorer-bradbury.genlayer.com/tx/0x45313e6eba613ad1b40177a32035252b0878cf358aa7bc0fc080c77e5e806c5c) | post still compliant: COMPLETED, second half (payout 1) to the creator |
-| campaign 4: create, fee 0.002 GEN | [`0xa987f645…`](https://explorer-bradbury.genlayer.com/tx/0xa987f6458f41d890f6ba4006f00d2d18dba1126607982abbfb63af228cea8e89) | OPEN |
-| brand submits the post | [`0xb2a3e27b…`](https://explorer-bradbury.genlayer.com/tx/0xb2a3e27b6661d6c10fdd77c54e1188ca7d2fbc0a09679a6ea9af176dc38fb226) | rejected: only the named creator |
-| creator submits `post-4.html` | [`0xcc54ea44…`](https://explorer-bradbury.genlayer.com/tx/0xcc54ea44b9e863b553736b911fc4943e3d5bf466f926ef3ad28d9c763326b153) | LIVE, half the fee (payout 4) to the creator |
-| recheck, post unchanged | [`0x141f31b8…`](https://explorer-bradbury.genlayer.com/tx/0x141f31b876b4f92974c005d9fecf3a5dbe9e279a32a8d3383b57b4909b280701) | still LIVE, nothing paid |
-| post edited to drop `#ad`, recheck | [`0x1cd54ef3…`](https://explorer-bradbury.genlayer.com/tx/0x1cd54ef38c75ee80545c6be688e063e5d7620263cdb2d3e6bacc0a8b37f4457b) | REFUNDED, the rest (payout 5) to the brand |
-| recheck again | [`0x27431311…`](https://explorer-bradbury.genlayer.com/tx/0x2743131126eddad69b7e69a8cd0e875e02eddc0e69b433009d6a7559d807ab95) | rejected: not LIVE |
-| campaign 5: create | [`0x71134467…`](https://explorer-bradbury.genlayer.com/tx/0x711344670dff990d1cef064bed033550ac8c8ab35601950ac6369f31cfe1fe87) | OPEN |
-| 3 submits of a post without `#ad` | [`0x3ea2feee…`](https://explorer-bradbury.genlayer.com/tx/0x3ea2feeedd3f50d17172903085f9bb455197b8f88117ae75c47eb02d460f4288), [`0x3ee326d1…`](https://explorer-bradbury.genlayer.com/tx/0x3ee326d14e286849cea40942a558ac119db5909299303df52515550b71fffeff), [`0xd9c6b6a7…`](https://explorer-bradbury.genlayer.com/tx/0xd9c6b6a7c4ed1c41c16eea9f40e8e8b8824ff7528b1ead002bf1ac36f74295f4) | OPEN, OPEN, then EXPIRED: the whole fee (payout 6) to the brand |
-| 4th submit | [`0x7f5592be…`](https://explorer-bradbury.genlayer.com/tx/0x7f5592be102e1b302cff276517c8490d68fc3ba4b0a94ac280f821fef1882e65) | rejected: campaign closed |
+| campaign 1: create, fee 0.002 GEN | [`0xc9a3be6c…`](https://explorer-bradbury.genlayer.com/tx/0xc9a3be6c56acf1a3d151d0d28d0706929e302363e8cfcbb9ea6c39e6aef0fde3) | OPEN |
+| brand submits the post | [`0xfd1107f8…`](https://explorer-bradbury.genlayer.com/tx/0xfd1107f84636f9e8fad9920c96db8ca05dd1dfb9f4994a967fb051498319d7f2) | rejected: only the named creator |
+| creator submits `post-1.html` | [`0xf8dec14d…`](https://explorer-bradbury.genlayer.com/tx/0xf8dec14db9948124f385ad39e28b74cc5b8777e4bfe69a550c85a75c4718e37b) | LIVE, half the fee (payout 1) to the creator |
+| recheck, post unchanged | [`0x83b16d7d…`](https://explorer-bradbury.genlayer.com/tx/0x83b16d7d75e032fbba6d30e87432dd4571849fae9e7899faf3e3bfa959ed8408) | validators agree the hash is unchanged: still LIVE, nothing paid |
+| post edited to drop `#ad`, recheck | [`0x7b3c2fc5…`](https://explorer-bradbury.genlayer.com/tx/0x7b3c2fc5d2364469750b54f72a65bd6a5db5f41e9f8659440ddd868787b0f966) | REFUNDED, the rest (payout 2) to the brand |
+| recheck again | [`0x015d16f7…`](https://explorer-bradbury.genlayer.com/tx/0x015d16f7b86f9a251b3900b7ad350406835bd238542150528dc92c6efbbe921d) | rejected: not LIVE |
+| campaign 2: create | [`0x429a1483…`](https://explorer-bradbury.genlayer.com/tx/0x429a14837a22e88025f4a850b5e3c9badf68a96afcd5c675e7a4166df5a8b4aa) | OPEN |
+| 3 submits of a post without `#ad` | [`0x8d679df7…`](https://explorer-bradbury.genlayer.com/tx/0x8d679df77bdda4d92399d5ae528e654f85ba9a779bf8654a0888e840522a87e1), [`0x5bdfde02…`](https://explorer-bradbury.genlayer.com/tx/0x5bdfde0211c1da086f719322d070f3ec9842af595fde3292ab872ce59be41c4b), [`0x8d9aebd9…`](https://explorer-bradbury.genlayer.com/tx/0x8d9aebd985bd02e3e8556184ff42bf5108fee29bc27e13fc2720e6615914d2c3) | OPEN, OPEN, then EXPIRED: the whole fee (payout 3) to the brand |
+| 4th submit | [`0xc7051177…`](https://explorer-bradbury.genlayer.com/tx/0xc7051177bb0f091907103755c2ac0322f8724549d178225b692a08355135958f) | rejected: campaign closed |
 
 | Payout | Kind | Paid by | Finalized by (block) | Recipient balance | `settle_payout` | Result |
 |---|---|---|---|---|---|---|
-| 1 | fee → creator | [`0x45313e6e…`](https://explorer-bradbury.genlayer.com/tx/0x45313e6eba613ad1b40177a32035252b0878cf358aa7bc0fc080c77e5e806c5c) | [`0x27ae8275…`](https://explorer-bradbury.genlayer.com/tx/0x27ae82754b1d512abbffcde0a3b0cd7243055de3d9d31ba3d567c1e0f2b6f6da) (25538204) | +0.001 GEN | [`0xf56f2146…`](https://explorer-bradbury.genlayer.com/tx/0xf56f21468197656327a07eefb75e92a741e57092adb74f75cf85c8682411d7ba) | DELIVERED |
-| 2 | fee → creator | [`0x2fe2ecf9…`](https://explorer-bradbury.genlayer.com/tx/0x2fe2ecf9b2579b0aaab1bf92f470b80135b51605036cedb7d9a10ea6052c1d1b) | [`0x535a37b7…`](https://explorer-bradbury.genlayer.com/tx/0x535a37b7795bb4b7802b89cd04632dde3d8746731069507910ae5c83e5917a54) (25538275) | +0.001 GEN | [`0x4caad01a…`](https://explorer-bradbury.genlayer.com/tx/0x4caad01aec0f65f89d36dcb0a20ba2c59a269e3081adc1b95e034926d3b247ae) | DELIVERED |
-| 3 | refund → brand | [`0x3ea7d3ff…`](https://explorer-bradbury.genlayer.com/tx/0x3ea7d3ffb948de9e5bd30868a2f4cc5771bf83139c752c7902228146e3b6e5ae) | [`0x50d736c4…`](https://explorer-bradbury.genlayer.com/tx/0x50d736c46e86bfdab4ac3dc5e69d22de7110a1dd6176fab7606a2c4e20cccf86) (25538304) | +0.001 GEN | [`0xd3a11f86…`](https://explorer-bradbury.genlayer.com/tx/0xd3a11f861bdf22b9a04efff9c2701ad7d1703c830561994f82ade96199e7364f) | DELIVERED |
-| 4 | fee → creator | [`0xcc54ea44…`](https://explorer-bradbury.genlayer.com/tx/0xcc54ea44b9e863b553736b911fc4943e3d5bf466f926ef3ad28d9c763326b153) | [`0x95b6b6eb…`](https://explorer-bradbury.genlayer.com/tx/0x95b6b6eb30e69a3adb9b067db68c3375532d2251bae6fdf0d0364a88bae5479c) (25560431) | +0.001 GEN | [`0xb6b86b61…`](https://explorer-bradbury.genlayer.com/tx/0xb6b86b61fc6b9b7b9b88c1cc621a84db3c60d8195f3dd3a201f3913f58f836b7) | DELIVERED |
-| 5 | refund → brand | [`0x1cd54ef3…`](https://explorer-bradbury.genlayer.com/tx/0x1cd54ef38c75ee80545c6be688e063e5d7620263cdb2d3e6bacc0a8b37f4457b) | [`0x19664101…`](https://explorer-bradbury.genlayer.com/tx/0x196641015da610c0f8ef0a92198f894ac81125943d37692fff5ec36bb2e75398) (25561079) | +0.001 GEN | [`0xcdd8ebe4…`](https://explorer-bradbury.genlayer.com/tx/0xcdd8ebe47066cb64cedc44a6b273ad78cd375b5ccc24b7ebb7734c634bc8246e) | DELIVERED |
-| 6 | refund → brand | [`0xd9c6b6a7…`](https://explorer-bradbury.genlayer.com/tx/0xd9c6b6a7c4ed1c41c16eea9f40e8e8b8824ff7528b1ead002bf1ac36f74295f4) | [`0x6e3c2a84…`](https://explorer-bradbury.genlayer.com/tx/0x6e3c2a84ca992c6ffed7d47126ddc75ad9f313d83bb6843cadfb01c0e62b1359) (25561900) | +0.002 GEN | [`0x9799f700…`](https://explorer-bradbury.genlayer.com/tx/0x9799f700afac958861e6afdc5942c15a8d8c3bc51765ed2bfb85f6921a4af6db) | DELIVERED |
+| 1 | fee → creator | [`0xf8dec14d…`](https://explorer-bradbury.genlayer.com/tx/0xf8dec14db9948124f385ad39e28b74cc5b8777e4bfe69a550c85a75c4718e37b) | [`0x08617bd9…`](https://explorer-bradbury.genlayer.com/tx/0x08617bd910d7057fa1d39d6d1f06a07d2ed67bc72052c650e922e1996bf12f80) (25601645) | +0.001 GEN | [`0x813ba6b7…`](https://explorer-bradbury.genlayer.com/tx/0x813ba6b72bac7644cbe14393bc69be107cf02a04e32e2b82dcc51f976a047ba9) | DELIVERED |
+| 2 | refund → brand | [`0x7b3c2fc5…`](https://explorer-bradbury.genlayer.com/tx/0x7b3c2fc5d2364469750b54f72a65bd6a5db5f41e9f8659440ddd868787b0f966) | [`0xcfdeb3a7…`](https://explorer-bradbury.genlayer.com/tx/0xcfdeb3a7dbb396f71a07f2387d06dd2ea1f873147f542dcf453778788765db0a) (25601882) | +0.001 GEN | [`0x454d6dcc…`](https://explorer-bradbury.genlayer.com/tx/0x454d6dcc650d71e658776dba6cd8ce0ca0866af0ef8654c0561ca2ef066f9a9d) | DELIVERED |
+| 3 | refund → brand | [`0x8d9aebd9…`](https://explorer-bradbury.genlayer.com/tx/0x8d9aebd985bd02e3e8556184ff42bf5108fee29bc27e13fc2720e6615914d2c3) | [`0x515581d5…`](https://explorer-bradbury.genlayer.com/tx/0x515581d5fa688a06776d87e5b58a2d8bb1131aece90a5ee3c2d23db474dbba9b) (25603173) | +0.002 GEN | [`0xe88a7642…`](https://explorer-bradbury.genlayer.com/tx/0xe88a7642ea2445643b4e9a23732f1d5c35a25c6138ca0b3a8aa9e447e704eafa) | DELIVERED |
 
-Settling each one again is rejected (e.g. payout 4: [`0xf8a68bdd…`](https://explorer-bradbury.genlayer.com/tx/0xf8a68bdd474c960faf98d6ac5bfc6d62e86ad86f27b71ef090eb68830b89b092)). Final state: campaign 0 COMPLETED, 1 and 4 REFUNDED, 5 EXPIRED, 2 and 3 OPEN; payouts 0–6 all DELIVERED.
+Settling a payout again is rejected (e.g. payout 1: [`0x89d3b995…`](https://explorer-bradbury.genlayer.com/tx/0x89d3b9950ae99f955e739836bd473ceab64e78837f4ba7448e389ce790335537)). State now: campaign 1 REFUNDED, 2 EXPIRED, payouts 0–3 all DELIVERED, `get_accounting` reports `unaccounted: 0` (the 0.001 GEN left is campaign 0's second half).
 
-**Known gap: `get_accounting` reports `unaccounted: -0.003 GEN`.** Three finalized `submit_post` transactions judged the post *not* compliant (the state records no payout and the campaign stays OPEN), yet each also executed a 0.001 GEN transfer to the creator, carrying the same message as an earlier fee payout: [`0xc412bbc5…`](https://explorer-bradbury.genlayer.com/tx/0xc412bbc5818ae9fd030b2569f9bf0639e066f316dedeefa7ca74e6e89e5a4f25), [`0x118b8795…`](https://explorer-bradbury.genlayer.com/tx/0x118b8795b0b77cd9584f44631ab8782b13eb8051058890cd623bacc4b4aa748d), [`0x3ea2feee…`](https://explorer-bradbury.genlayer.com/tx/0x3ea2feeedd3f50d17172903085f9bb455197b8f88117ae75c47eb02d460f4288). The contract has no transfer on that path, so this looks like a platform-side replay of a queued message. No payout was settled from these transfers, and the test's final `unaccounted == 0` check fails on them only.
+Campaign 0 stays LIVE until its one-day live period ends (2026-10-21 17:11 UTC); `test_complete` then rechecks it, completes it and settles the second half. Until then it skips.
 
 ## Consensus design
 
@@ -82,10 +78,21 @@ Settling each one again is rejected (e.g. payout 4: [`0xf8a68bdd…`](https://ex
   campaign's hosts (subdomains allowed, look-alikes rejected), and the post
   must contain the campaign code `sponsorpay-<id>`, so an old post or someone
   else's cannot be reused. A leader that skips the code check is rejected.
+- **Every "met" is quoted.** For each requirement it marks met, the model
+  must quote the post exactly; the contract checks the quote is in the post
+  (ignoring case and spacing) and otherwise counts the requirement as not met.
+  On Bradbury a post without `#ad` was once judged all met by every validator,
+  the note claiming "includes #ad": such a verdict now fails, deterministically,
+  on leader and validators alike.
 - **Cheap rechecks.** The SHA-256 of the approved post is stored. A
   byte-identical post passes without an LLM call; `unchanged` and `ok` count
   as the same answer, so a validator whose copy differs by a byte re-judges
-  and can still agree.
+  and can still agree. The stored hash is validator-agreed: a passing result is
+  accepted only if its hash is the validator's own hash of the post (or, for
+  `unchanged`, the hash already stored), or empty. So a leader cannot store the
+  hash of a future non-compliant edit to skip the LLM later. The leader fetches
+  a passing post twice; if the copy changes between fetches (a dynamic page) it
+  reports no hash, and every recheck runs the LLM.
 - **An outage never moves money.** 404/410 means removed (refund). Any other
   failure reverts with `[EXTERNAL]`, so a rate limit or a platform outage
   neither refunds the brand nor pays the creator. Validators agree on an
@@ -136,7 +143,7 @@ informational only and never decides a payout.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 genvm-lint check contracts/sponsor_pay.py
-pytest tests/direct -v                         # 49 tests
+pytest tests/direct -v                         # 54 tests
 # integration, on Bradbury, against the packed code (keys in GL_PK0..2 env vars)
 python deploy/shrink.py contracts/sponsor_pay.py build/sponsor_pay.py --pack
 cd tests/integration && gltest . -v -s --network testnet_bradbury
@@ -149,10 +156,10 @@ direct tests against the packed code.
 `demo/post-good.html` and `demo/post-noad.html` are the demo posts (served
 from `sponsorpay.cristhedev.com/demo/` with `__CODE__` replaced).
 
-## Tests (49 direct, Bradbury E2E)
+## Tests (54 direct, Bradbury E2E)
 
-- **Lifecycle** — create and its validation; a compliant post pays half; failed attempts (requirement not met, code missing, 404) then a full refund; submit guards (outsider, http, foreign and look-alike hosts; subdomains allowed); deadline and expire; unchanged recheck skips the LLM; completion pays the rest; a compliant edit passes; removed, code gone or a broken requirement refunds the rest; 503/429/403 change nothing; each payout settled from its own transfer: delivered, or failed and recoverable (a failed recovery returns to its owner); settle rejects another transaction, sender, time, method or campaign, an unfinalized transaction, another finalization, bad hashes and an unavailable RPC; one payment per sender per second.
-- **Consensus (validator replay)** — agrees with an honest leader; every requirement must match; rejects forged payloads and a leader that ignores the campaign code; `unchanged` vs `ok` agree; errors agree only when identical; malformed LLM output reverts; the post is fenced.
+- **Lifecycle** — create and its validation; a compliant post pays half; failed attempts (requirement not met, code missing, 404) then a full refund; submit guards (outsider, http, foreign and look-alike hosts; subdomains allowed); deadline and expire; unchanged recheck skips the LLM; a met requirement needs a quote really in the post (case and spacing ignored); completion pays the rest; a compliant edit passes; removed, code gone or a broken requirement refunds the rest; 503/429/403 change nothing; each payout settled from its own transfer: delivered, or failed and recoverable (a failed recovery returns to its owner); settle rejects another transaction, sender, time, method or campaign, an unfinalized transaction, another finalization, bad hashes and an unavailable RPC; one payment per sender per second.
+- **Consensus (validator replay)** — agrees with an honest leader; every requirement must match; rejects forged payloads, a leader that ignores the campaign code, and a forged post hash with an otherwise correct verdict (on `ok` and `unchanged`); `unchanged` vs `ok` agree; errors agree only when identical; malformed LLM output reverts; the post is fenced.
 
 ## License
 
