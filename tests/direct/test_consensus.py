@@ -1,5 +1,6 @@
 """Validator behaviour for post checks."""
 
+import hashlib
 import json
 
 import pytest
@@ -31,6 +32,37 @@ def test_rejects_forged_payloads(judged, direct_vm):
     assert direct_vm.run_validator(leader_result={**stored, "ok": 1}) is False
     assert direct_vm.run_validator(leader_result={**stored, "note": "x" * 5000}) is False
     assert direct_vm.run_validator(leader_result={**stored, "code": "removed"}) is False
+
+
+def test_rejects_a_forged_post_hash(judged, direct_vm):
+    """The stored sha256 authorises the unchanged-content shortcut, so a leader with
+    the right verdict but another hash (e.g. of a non-compliant edit) is rejected."""
+    stored = direct_vm._captured_validators[-1][0]
+    assert stored["code"] == "ok" and len(stored["sha256"]) == 64
+    post(direct_vm)
+    forged = hashlib.sha256(POST.replace("#ad", "").encode()).hexdigest()
+    assert direct_vm.run_validator(leader_result={**stored, "sha256": forged}) is False
+    assert direct_vm.run_validator(leader_result={**stored, "sha256": "0" * 64}) is False
+    assert direct_vm.run_validator(leader_result={**stored, "sha256": ""}) is True  # no shortcut: safe
+    assert direct_vm.run_validator(leader_result=stored) is True
+
+
+def test_rejects_a_forged_hash_on_unchanged(judged, direct_vm, direct_bob):
+    post(direct_vm)
+    direct_vm.sender = direct_bob
+    judged.recheck(0)
+    stored = direct_vm._captured_validators[-1][0]
+    assert stored["code"] == "unchanged"
+    assert direct_vm.run_validator(leader_result={**stored, "sha256": "f" * 64}) is False
+
+
+def test_forged_hash_cannot_pass_a_non_compliant_edit(judged, direct_vm, direct_bob):
+    """With only an agreed hash stored, a non-compliant edit is re-judged and refunds."""
+    edit = POST.replace("#ad", "")
+    post(direct_vm, met=(False, True, True), body=edit)
+    direct_vm.warp("2030-01-06T10:00:00Z")
+    direct_vm.sender = direct_bob
+    assert judged.recheck(0)["status"] == "REFUNDED"
 
 
 def test_rejects_a_leader_that_ignores_the_campaign_code(judged, direct_vm):

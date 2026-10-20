@@ -249,8 +249,10 @@ def _result(code: str, met: list, sha: str = "", note: str = "") -> dict:
     return {"ok": code in PASS, "code": code, "met": met, "sha256": sha, "note": note[:MAX_NOTE]}
 
 
-def _judge(p: dict) -> dict:
-    """Leader-side check of the post. `p`: url, brief, reqs, code, prev_sha."""
+def _judge(p: dict, leader: bool = False) -> dict:
+    """Check of the post. `p`: url, brief, reqs, code, prev_sha. The leader also
+    re-fetches a passing post: if the copy changes between fetches, it reports no
+    sha256 (no unchanged-content shortcut later), since validators could not agree on it."""
     n = len(p["reqs"])
     try:
         resp = gl.nondet.web.get(p["url"])
@@ -267,7 +269,7 @@ def _judge(p: dict) -> dict:
         text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text)).strip()
     if p["code"] not in text:
         return _result("code_missing", [False] * n, sha)
-    if sha == p["prev_sha"]:
+    if p["prev_sha"] and sha == p["prev_sha"]:
         return _result("unchanged", [True] * n, sha)
     shown = text[:MAX_POST_CHARS]
     if len(text) > MAX_POST_CHARS:
@@ -305,7 +307,16 @@ Respond with ONLY JSON:
     met = out.get("met") if isinstance(out, dict) else None
     if not isinstance(met, list) or len(met) != n or not all(isinstance(m, bool) for m in met):
         raise gl.vm.UserError(f"{ERR_LLM} expected {n} booleans in 'met'")
+    if leader and all(met) and not _same_copy(p["url"], sha):
+        sha = ""
     return _result("ok" if all(met) else "not_met", met, sha, str(out.get("note", "")))
+
+
+def _same_copy(url: str, sha: str) -> bool:
+    try:
+        return hashlib.sha256(gl.nondet.web.get(url).body).hexdigest() == sha
+    except Exception:
+        return False
 
 
 def _validate(p: dict, leader_result) -> bool:
@@ -320,6 +331,12 @@ def _validate(p: dict, leader_result) -> bool:
         return False
     if t.get("met") != mine["met"] or t.get("ok") is not mine["ok"]:
         return False
+    # A passing result's sha256 is stored and later lets a byte-identical post
+    # skip the LLM, so it must be the validator's own hash of the post, or the
+    # already agreed one carried by "unchanged", or empty (no shortcut).
+    if t.get("ok") is True and t.get("sha256") not in ("", mine["sha256"]):
+        if not (t.get("code") == "unchanged" and p["prev_sha"] and t.get("sha256") == p["prev_sha"]):
+            return False
     # A validator whose copy differs by a dynamic byte re-judges; "ok" and
     # "unchanged" are the same answer.
     return t.get("code") == mine["code"] or (t.get("code") in PASS and mine["code"] in PASS)
@@ -644,7 +661,7 @@ class SponsorPay(gl.Contract):
         params = {"url": url, "brief": c.brief, "reqs": json.loads(c.requirements), "code": _code(int(c.id)), "prev_sha": prev_sha}
 
         def leader_fn() -> dict:
-            return _judge(params)
+            return _judge(params, leader=True)
 
         def validator_fn(res) -> bool:
             return _validate(params, res)
