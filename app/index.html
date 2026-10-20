@@ -1,17 +1,34 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SponsorPay</title><meta name="description" content="Sponsored posts paid only if compliant and still up"><meta name="theme-color" content="#FAFAF7">
-<link rel="stylesheet" href="app.css">
+<title>SponsorPay</title><meta name="description" content="Sponsored posts paid only if compliant and still up"><meta name="theme-color" content="#170E14">
+<link rel="stylesheet" href="app.css"><link rel="icon" href="logo.svg" type="image/svg+xml">
 </head><body>
 <div class="bar"><div class="w"><span class="who">cristhedev <span style="color:var(--line)">/</span> genlayer builds</span><nav id="sites"></nav></div></div>
-<div class="head"><div class="w"><div><h1>SponsorPay</h1><p>Sponsored posts paid only if compliant and still up</p></div><button id="connect" class="ghost" type="button">Connect wallet</button></div></div>
-<div class="meta"><div class="w"><span>contract <a href="https://explorer-bradbury.genlayer.com/address/0x6116b695D019859d5fB8CBB55D5570503f560533">0x6116…0533 ↗</a></span><span>network <b>testnet bradbury</b></span><span><a href="https://github.com/cris-the-dev/genlayer-sponsorpay">source ↗</a></span><span><a href="docs.html">docs →</a></span></div></div>
+<header class="mast"><div class="w">
+  <div class="top"><span class="live">Campaigns open · Testnet Bradbury</span>
+    <div class="links">
+      <a href="https://explorer-bradbury.genlayer.com/address/0x6116b695D019859d5fB8CBB55D5570503f560533">Contract 0x6116…0533 ↗</a>
+      <a href="https://github.com/cris-the-dev/genlayer-sponsorpay">Source ↗</a>
+      <a href="docs.html">Docs</a>
+      <button id="connect" type="button">Connect wallet</button>
+    </div></div>
+  <div class="title">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><use href="logo.svg#m"/></svg>
+    <h1>Sponsor<em>Pay</em></h1>
+    <p>Sponsored posts paid only if compliant and still up. GenLayer validators read the post, not the screenshot.</p>
+  </div>
+</div></header>
+<div class="tape" aria-hidden="true"><div><span>#ad disclosed</span><i>✦</i><span>Paid on proof</span><i>✦</i><span>Still up or refunded</span><i>✦</i><span>Validators read the post</span><i>✦</i><span>#ad disclosed</span><i>✦</i><span>Paid on proof</span><i>✦</i><span>Still up or refunded</span><i>✦</i><span>Validators read the post</span><i>✦</i><span>#ad disclosed</span><i>✦</i><span>Paid on proof</span><i>✦</i><span>Still up or refunded</span><i>✦</i><span>Validators read the post</span><i>✦</i><span>#ad disclosed</span><i>✦</i><span>Paid on proof</span><i>✦</i><span>Still up or refunded</span><i>✦</i><span>Validators read the post</span><i>✦</i></div></div>
+<div class="w"><div class="stats" id="stats">
+    <div class="stat"><b>–</b><span>Campaigns</span></div><div class="stat"><b>–</b><span>Live now</span></div>
+    <div class="stat"><b>–</b><span>In escrow (GEN)</span></div><div class="stat"><b>–</b><span>Paid out (GEN)</span></div>
+  </div></div>
 <main class="w">
   <p id="status" class="status" hidden></p>
   <div class="grid">
     <div>
       <section>
-        <h2>Campaigns</h2>
+        <p class="label">The feed · <b>pick a campaign</b></p>
         <div class="tbl"><table>
           <thead><tr><th>#</th><th>Campaign</th><th>Creator</th><th class="r">Fee</th><th class="r">Paid</th><th>Status</th></tr></thead>
           <tbody id="campaigns"><tr><td colspan="6" class="empty">Reading the contract…</td></tr></tbody>
@@ -22,8 +39,8 @@
 
     <aside>
       <section>
-        <h2>How a post is paid</h2>
-        <dl class="kv">
+        <p class="label">Rules of the deal</p>
+        <dl class="kv card">
           <div><dt>Campaign code</dt><dd>the post must contain <span class="mono">sponsorpay-&lt;id&gt;</span></dd></div>
           <div><dt>Validators judge</dt><dd>each requirement, met or not</dd></div>
           <div><dt>Validators agree if</dt><dd>the same answer for every requirement</dd></div>
@@ -33,7 +50,7 @@
           <div><dt>Outage</dt><dd>an unreachable post reverts, it never pays or refunds</dd></div>
         </dl>
       </section>
-      <section>
+      <section class="card">
         <details>
           <summary>Start a campaign</summary>
           <form id="create">
@@ -79,6 +96,9 @@ async function load(openId) {
       <td class="r num">${gen(c.amount, 6)} GEN</td><td class="r num">${gen(c.paid, 6)} GEN</td>
       <td><span class="tag ${cls[c.status] || ""}">${esc(c.status.toLowerCase())}</span></td></tr>`).join("")
       : `<tr><td colspan="6" class="empty">No campaigns yet.</td></tr>`;
+    const sum = (f) => gen(items.reduce((a, c) => a + f(c), 0), 4);
+    $("#stats").querySelectorAll("b").forEach((b, i) => b.textContent = [items.length, items.filter((c) => c.status === "LIVE").length,
+      sum((c) => ["OPEN", "LIVE"].includes(c.status) ? c.amount - c.paid : 0), sum((c) => c.paid)][i]);
     const h = location.hash.match(/^#campaign-(\d+)$/), id = openId ?? (h ? Number(h[1]) : null);
     if (items.length) show(Number.isInteger(id) && items.some((c) => c.id === id) ? id : items[0].id);
   } catch (e) {
@@ -87,15 +107,15 @@ async function load(openId) {
 }
 
 function actions(c, recov) {
-  if (!me) return `<p class="hint" style="margin-top:16px">Connect a wallet to submit a post or recheck one.</p>`;
+  if (!me) return `<p class="hint">Connect a wallet to submit a post or recheck one.</p>`;
   const now = Date.now() / 1000, out = [], isC = c.creator.toLowerCase() === me.toLowerCase();
   if (c.status === "OPEN" && now <= c.deadline && isC && c.attempts_left > 0)
     out.push(`<form data-form="submit_post"><label>Post URL on ${esc(c.hosts.join(", "))} (must contain <span class="mono">${esc(c.code)}</span>)<input name="url" type="url" pattern="https://.*" required></label>
       <div><button>Submit post (${c.attempts_left} attempt${c.attempts_left === 1 ? "" : "s"} left)</button></div></form>`);
   if (c.status === "OPEN" && now > c.deadline) out.push(`<button class="ghost" data-act="expire">Refund the brand (deadline passed)</button>`);
   if (c.status === "LIVE") out.push(`<button class="${now >= c.live_until ? "" : "ghost"}" data-act="recheck">${now >= c.live_until ? "Recheck and settle" : "Recheck the post now"}</button>`);
-  if (recov > 0) out.push(`<form data-form="recover" class="row" style="align-items:end"><label>Recover ${gen(recov, 6)} GEN from a failed transfer, to<input name="to" pattern="0x[0-9a-fA-F]{40}" value="${esc(me)}" required></label><div><button>Recover</button></div></form>`);
-  return out.length ? `<div style="display:grid;gap:12px;margin-top:20px">${out.join("")}</div>` : "";
+  if (recov > 0) out.push(`<form data-form="recover" class="row"><label>Recover ${gen(recov, 6)} GEN from a failed transfer, to<input name="to" pattern="0x[0-9a-fA-F]{40}" value="${esc(me)}" required></label><div><button>Recover</button></div></form>`);
+  return out.length ? `<div class="acts">${out.join("")}</div>` : "";
 }
 
 async function show(id) {
@@ -105,12 +125,12 @@ async function show(id) {
   const n = (await sp.read("get_accounting")).payout_count;
   const pays = (await Promise.all(Array.from({ length: n }, (_, i) => sp.read("get_payout", [i]).then((p) => ({ ...p, id: i }))))).filter((p) => p.kind === "recover" ? me && p.sender.toLowerCase() === me.toLowerCase() : p.campaign_id === c.id);
   const xfer = (p) => `<span class="tag ${p.status === "FAILED" ? "bad" : ""}">${{ FAILED: "failed, restored", DELIVERED: "delivered" }[p.status] || "sent"}</span>${me && p.status === "SENT" ? ` <button class="ghost" data-act="settle_payout" data-arg="${p.id}" title="Settle from this transfer's result once the paying transaction is finalized">Settle</button>` : ""}`;
-  const mark = (i) => c.met.length ? (c.met[i] ? `<span class="tag ok">met</span>` : `<span class="tag bad">not met</span>`) : "";
+  const mark = (i) => c.met.length ? (c.met[i] ? ` class="met"` : ` class="miss"`) : "";
   const el = $("#detail");
   el.hidden = false;
-  el.innerHTML = `<h2>${esc(c.title)} · campaign #${c.id} <span class="tag ${cls[c.status] || ""}">${esc(c.status.toLowerCase())}</span></h2>
-    ${c.brief ? `<blockquote style="margin:8px 0 12px;padding-left:12px;border-left:2px solid var(--fg)">${esc(c.brief)}</blockquote>` : ""}
-    <ol style="margin:8px 0 16px 20px">${c.requirements.map((r, i) => `<li>${esc(r)} ${mark(i)}</li>`).join("")}</ol>
+  el.innerHTML = `<h2><small>Campaign ${c.id} · the brief</small>${esc(c.title)} <span class="tag ${cls[c.status] || ""}">${esc(c.status.toLowerCase())}</span></h2>
+    ${c.brief ? `<p class="brief">${esc(c.brief)}</p>` : ""}
+    <ol class="reqs">${c.requirements.map((r, i) => `<li${mark(i)}>${esc(r)}</li>`).join("")}</ol>
     <dl class="kv">
       <div><dt>Brand</dt><dd>${addr(c.brand)}</dd></div>
       <div><dt>Creator</dt><dd>${addr(c.creator)}</dd></div>
@@ -121,12 +141,13 @@ async function show(id) {
       <div><dt>Live period</dt><dd>${c.live_until ? `until ${when(c.live_until)}` : `${c.live_days} days after approval`}</dd></div>
       ${c.post_url ? `<div><dt>Post</dt><dd><a class="mono" href="${esc(c.post_url)}">${esc(c.post_url.replace(/^https:\/\//, "").slice(0, 50))}</a></dd></div>` : ""}
       ${c.checks ? `<div><dt>Last check</dt><dd>${when(c.checked_at)} · ${esc(c.note)}</dd></div>` : ""}
-      ${c.post_sha256 ? `<div><dt>Post sha256</dt><dd class="mono" style="word-break:break-all">${esc(c.post_sha256)}</dd></div>` : ""}
+      ${c.post_sha256 ? `<div><dt>Post sha256</dt><dd class="mono sha">${esc(c.post_sha256)}</dd></div>` : ""}
     </dl>
-    ${pays.length ? `<h2 style="margin-top:24px">Payouts</h2><div class="tbl"><table><thead><tr><th>Kind</th><th>To</th><th class="r">Amount</th><th>Transfer</th></tr></thead><tbody>
+    ${pays.length ? `<h3>Payouts</h3><div class="tbl"><table><thead><tr><th>Kind</th><th>To</th><th class="r">Amount</th><th>Transfer</th></tr></thead><tbody>
       ${pays.map((p) => `<tr><td>${esc(p.kind)}</td><td>${addr(p.to)}</td><td class="r num">${gen(p.amount, 6)}</td><td>${xfer(p)}</td></tr>`).join("")}</tbody></table></div>` : ""}
     ${actions(c, recov)}`;
   el.dataset.id = c.id;
+  document.querySelectorAll("#campaigns tr").forEach((tr) => tr.classList.toggle("sel", tr.dataset.id === String(c.id)));
 }
 
 $("#campaigns").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-id]"); if (tr && !e.target.closest("a[href^='http']")) { e.preventDefault(); history.replaceState(null, "", `#campaign-${tr.dataset.id}`); show(Number(tr.dataset.id)); $("#detail").scrollIntoView({ behavior: "smooth" }); } });
