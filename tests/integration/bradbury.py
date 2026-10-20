@@ -8,7 +8,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import requests
+
 from genlayer_py.contracts import actions
+from genlayer_py.provider import provider as provider_module
 from genlayer_py.transactions import actions as tx_actions
 from genlayer_py.types import transactions as tx_types
 from gltest.clients import get_gl_client
@@ -17,7 +20,12 @@ from gltest.contracts.contract_factory import ContractFactory
 RPC = "https://rpc-bradbury.genlayer.com"
 CONSENSUS_MAIN = "0x0112Bf6e83497965A5fdD6Dad1E447a6E004271D"
 T_FINALIZED = "0x24196ec40f90671b7144e716978686b4f3c7d6b00b23da3971ef2b52af27d87f"
-TIMEOUTS = (12, 13)  # gen statuses for leader / validators timeout: the transaction did not execute
+DONE = (5, 7)  # ACCEPTED, FINALIZED
+# UNDETERMINED (validators never agreed), CANCELED, leader / validators timeout:
+# nothing was applied. An appeal can still move a transaction out of these, so
+# one only counts once it has stayed there for STUCK seconds.
+NOT_APPLIED = (6, 8, 12, 13)
+STUCK = 600
 
 # genlayer_py sends the consensus-layer transaction with exactly eth_estimateGas;
 # by inclusion the state has moved and it can run out of gas and revert.
@@ -46,6 +54,22 @@ tx_types.TRANSACTION_STATUS_NUMBER_TO_NAME = tx_actions.TRANSACTION_STATUS_NUMBE
 )
 
 
+# genlayer_py posts without a timeout (a dropped connection hung a run for
+# hours) and gives up on the first disconnect. Requests are reads or a signed
+# transaction (same hash on resend), so retrying is safe.
+def _post(*args, **kwargs):
+    for attempt in range(5):
+        try:
+            return requests.post(*args, timeout=60, **kwargs)
+        except requests.exceptions.RequestException:
+            if attempt == 4:
+                raise
+            time.sleep(10)
+
+
+provider_module.requests = type("requests", (), {"post": staticmethod(_post), "exceptions": requests.exceptions})
+
+
 def rpc(method, params):
     req = urllib.request.Request(
         RPC,
@@ -65,15 +89,24 @@ def rpc(method, params):
     return out["result"]
 
 
+def _factory(name, build):
+    # The packed build hides the class inside exec(), so gltest's AST lookup cannot find it.
+    return ContractFactory(contract_name=name, contract_code=(Path(__file__).parents[2] / "build" / build).read_text())
+
+
 def deploy(name, build):
-    """Deploy build/<file>; the packed build hides the class inside exec(), so gltest's AST lookup cannot find it."""
-    code = (Path(__file__).parents[2] / "build" / build).read_text()
-    factory = ContractFactory(contract_name=name, contract_code=code)
+    """Deploy build/<file>."""
+    factory = _factory(name, build)
     receipt = factory.deploy_contract_tx(args=[])
     ok(receipt)
     c = factory.build_contract(contract_address=receipt["recipient"])
     print("contract", c.address)
     return c
+
+
+def attach(name, build, address):
+    """The already deployed contract at `address` (built from build/<file>)."""
+    return _factory(name, build).build_contract(contract_address=address)
 
 
 def view(c, fn, args=()):
@@ -92,33 +125,43 @@ def view(c, fn, args=()):
     return calldata.decode(bytes.fromhex(r.removeprefix("0x")))
 
 
-def _result(receipt):
-    """(tx id, txExecutionResult) from the chain: gltest's assertions only read Studio receipts."""
+def _outcome(receipt, timeout=3600):
+    """(tx id, gen status, txExecutionResult) once the transaction is accepted, or has
+    stayed not applied for STUCK seconds. gltest's wait and assertions stop earlier
+    (and only read Studio receipts)."""
     tx = receipt.get("tx_id") or receipt.get("hash")
-    return tx, rpc("gen_getTransactionReceipt", [{"txId": tx}])["txExecutionResult"]
+    deadline, since, last = time.time() + timeout, time.time(), None
+    while True:
+        r = rpc("gen_getTransactionReceipt", [{"txId": tx}])
+        if r["status"] != last:
+            since, last = time.time(), r["status"]
+        if last in DONE or (last in NOT_APPLIED and time.time() - since >= STUCK):
+            return tx, last, r["txExecutionResult"]
+        assert time.time() < deadline, f"{tx} still at status {last}"
+        time.sleep(15)
 
 
 def ok(receipt):
-    tx, res = _result(receipt)
-    assert res == 1, f"{tx} execution result {res}"
+    tx, status, res = _outcome(receipt)
+    assert status in DONE and res == 1, f"{tx} status {status} execution result {res}"
     print("  ok", tx)
     return tx
 
 
 def reverted(receipt):
-    tx, res = _result(receipt)
-    print("  reverted" if res == 2 else "  NOT reverted", tx)
-    return res == 2
+    tx, status, res = _outcome(receipt)
+    print("  reverted" if status in DONE and res == 2 else f"  NOT reverted (status {status}, result {res})", tx)
+    return status in DONE and res == 2
 
 
 def send(make):
-    """make() sends a transaction; resend while the leader or validators time out (nothing executed), then require success."""
+    """make() sends a transaction; resend while it ends not applied (validators disagreed or timed out), then require success."""
     for _ in range(3):
         receipt = make()
-        tx, res = _result(receipt)
-        if res or rpc("gen_getTransactionReceipt", [{"txId": tx}])["status"] not in TIMEOUTS:
+        tx, status, _ = _outcome(receipt)
+        if status in DONE:
             break
-        print("  leader/validators timed out, nothing executed; sending again:", tx)
+        print(f"  status {status}, nothing applied; sending again:", tx)
     return ok(receipt)
 
 
