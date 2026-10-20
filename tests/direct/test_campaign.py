@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from tests.direct.conftest import FEE, HOSTS, POST, REQS, URL, chain_balance, post, submit, to_hex
+from tests.direct.conftest import FEE, HOSTS, LLM, POST, REQS, URL, chain_balance, post, submit, to_hex
 
 
 def test_create(sp, direct_alice, direct_bob):
@@ -103,6 +103,28 @@ def test_edited_post_still_compliant(live, direct_vm, direct_charlie):
     direct_vm.sender = direct_charlie
     assert live.recheck(0)["code"] == "ok"
     assert live.get_campaign(0)["post_sha256"] != old
+
+
+def test_a_requirement_without_a_real_quote_is_not_met(sp, direct_vm, direct_bob):
+    """Seen on Bradbury: a post without #ad judged all met, the note claiming "includes #ad".
+    The model must quote the post for each met requirement, and the quote is checked."""
+    body = POST.replace(" #ad", "")
+    direct_vm.clear_mocks()
+    direct_vm.mock_web(r"social\.example", {"status": 200, "body": body})
+    quotes = ["acme.example #ad", "Acme Bottle", "acme.example"]
+    direct_vm.mock_llm(LLM, json.dumps({"met": [True, True, True], "quotes": quotes, "note": "includes #ad"}))
+    direct_vm.sender = direct_bob
+    r = sp.submit_post(0, URL)
+    assert r["status"] == "OPEN" and sp.get_campaign(0)["met"] == [False, True, True]
+
+
+@pytest.mark.parametrize("quotes", [["  hiking WITH my  new ", "\"Acme Bottle\"", "acme.example #ad…"]])
+def test_quotes_match_ignoring_case_spacing_and_wrapping(sp, direct_vm, direct_bob, quotes):
+    direct_vm.clear_mocks()
+    direct_vm.mock_web(r"social\.example", {"status": 200, "body": POST})
+    direct_vm.mock_llm(LLM, json.dumps({"met": [True, True, True], "quotes": quotes, "note": "ok"}))
+    direct_vm.sender = direct_bob
+    assert sp.submit_post(0, URL)["status"] == "LIVE"
 
 
 @pytest.mark.parametrize(

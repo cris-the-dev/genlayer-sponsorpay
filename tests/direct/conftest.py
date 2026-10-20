@@ -70,7 +70,8 @@ def sp(direct_vm, direct_deploy, direct_alice, direct_bob):
 def post(vm, met=(True, True, True), body=POST, status=200):
     vm.clear_mocks()
     vm.mock_web(r"social\.example", {"status": status, "body": body})
-    vm.mock_llm(LLM, json.dumps({"met": list(met), "note": "checked"}))
+    quotes = [body.split()[-1] if m else "" for m in met]  # an exact excerpt of the post
+    vm.mock_llm(LLM, json.dumps({"met": list(met), "quotes": quotes, "note": "checked"}))
 
 
 def submit(vm, c, who, url=URL, **kw):

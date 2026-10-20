@@ -107,7 +107,7 @@ def test_post_is_fenced(sp, direct_vm, direct_bob):
 
     def spy(vm, data):
         seen["prompt"] = data["prompt"]
-        return {"ok": {"met": [False, False, False], "note": "x"}}
+        return {"ok": {"met": [False, False, False], "quotes": ["", "", ""], "note": "x"}}
 
     wm._handle_llm_request = spy
     try:

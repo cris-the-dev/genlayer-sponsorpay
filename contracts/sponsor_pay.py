@@ -300,16 +300,33 @@ THE POST:
 For each requirement decide whether THE POST meets it as written.
 - Judge only what the post shows. A requirement the post does not clearly meet is false.
 - [TRUNCATED] means part of the post is not shown; if the missing part could decide a requirement, it is false.
+- For each requirement you mark true, quote the shortest part of THE POST that shows it,
+  copied exactly (at most 120 characters). Use "" for a requirement you mark false.
 
 Respond with ONLY JSON:
-{{"met": [one true or false per requirement, in order], "note": "one sentence"}}"""
+{{"met": [one true or false per requirement, in order], "quotes": [one string per requirement, in order], "note": "one sentence"}}"""
     out = gl.nondet.exec_prompt(prompt, response_format="json")
     met = out.get("met") if isinstance(out, dict) else None
     if not isinstance(met, list) or len(met) != n or not all(isinstance(m, bool) for m in met):
         raise gl.vm.UserError(f"{ERR_LLM} expected {n} booleans in 'met'")
+    quotes = out.get("quotes")
+    if not isinstance(quotes, list) or len(quotes) != n or not all(isinstance(q, str) for q in quotes):
+        raise gl.vm.UserError(f"{ERR_LLM} expected {n} strings in 'quotes'")
+    # A requirement only counts as met if its quote is really in the post: a model that
+    # sees "#ad" where there is none cannot quote it.
+    met = [m and _in_post(q, shown) for m, q in zip(met, quotes)]
     if leader and all(met) and not _same_copy(p["url"], sha):
         sha = ""
     return _result("ok" if all(met) else "not_met", met, sha, str(out.get("note", "")))
+
+
+def _norm(t: str) -> str:
+    return re.sub(r"\s+", " ", t).strip().lower()
+
+
+def _in_post(quote: str, shown: str) -> bool:
+    q = _norm(quote).strip("\"'“”‘’.…")
+    return bool(q) and q in _norm(shown)
 
 
 def _same_copy(url: str, sha: str) -> bool:

@@ -10,7 +10,9 @@ from pathlib import Path
 
 import requests
 
+from genlayer_py.client import GenLayerClient
 from genlayer_py.contracts import actions
+from genlayer_py.exceptions import GenLayerError
 from genlayer_py.provider import provider as provider_module
 from genlayer_py.transactions import actions as tx_actions
 from genlayer_py.types import transactions as tx_types
@@ -70,13 +72,31 @@ def _post(*args, **kwargs):
 provider_module.requests = type("requests", (), {"post": staticmethod(_post), "exceptions": requests.exceptions})
 
 
+# Its receipt polling also reads logs at a block another RPC node reported, and the
+# answering node can lag: "block not found" is retried instead of failing the wait.
+_get_transaction = GenLayerClient.get_transaction
+
+
+def _get_transaction_lagging(self, transaction_hash):
+    for attempt in range(10):
+        try:
+            return _get_transaction(self, transaction_hash)
+        except GenLayerError as e:
+            if "not found" not in str(e) or attempt == 9:
+                raise
+            time.sleep(15)
+
+
+GenLayerClient.get_transaction = _get_transaction_lagging
+
+
 def rpc(method, params):
     req = urllib.request.Request(
         RPC,
         json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode(),
         {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"},  # the RPC rejects Python's default agent
     )
-    for attempt in range(5):  # the edge returns occasional 5xx over a long run
+    for attempt in range(5):  # the edge returns occasional 5xx or stalls over a long run
         try:
             out = json.load(urllib.request.urlopen(req, timeout=60))
             break
@@ -84,9 +104,25 @@ def rpc(method, params):
             if e.code < 500 or attempt == 4:
                 raise
             time.sleep(10)
+        except (urllib.error.URLError, TimeoutError, ConnectionError):  # dropped or slow connection
+            if attempt == 4:
+                raise
+            time.sleep(10)
     if "error" in out:
         raise RuntimeError(f"{method}: {out['error']}")
     return out["result"]
+
+
+def rpc_lagging(method, params, tries=10):
+    """rpc() for a block another RPC node just reported: the nodes behind the edge
+    can lag each other, so 'block not found' is retried for a while."""
+    for attempt in range(tries):
+        try:
+            return rpc(method, params)
+        except RuntimeError as e:
+            if "not found" not in str(e) or attempt == tries - 1:
+                raise
+            time.sleep(15)
 
 
 def _factory(name, build):
@@ -166,7 +202,7 @@ def send(make):
 
 
 def balance(addr, block):
-    return int(rpc("eth_getBalance", [addr, hex(block)]), 16)
+    return int(rpc_lagging("eth_getBalance", [addr, hex(block)]), 16)
 
 
 def finalization(tx, timeout=3 * 3600):
@@ -179,14 +215,16 @@ def finalization(tx, timeout=3 * 3600):
         assert time.time() < deadline, f"{tx} not finalized: {r and r.get('status')}"
         time.sleep(30)
     start = int(r["readStateBlockRanges"][0]["ProposalBlock"])
-    head = int(rpc("eth_blockNumber", []), 16)
-    for lo in range(start, head + 1, 10_000):
-        logs = rpc(
-            "eth_getLogs",
-            [{"address": CONSENSUS_MAIN, "topics": [T_FINALIZED, tx], "fromBlock": hex(lo), "toBlock": hex(min(lo + 9_999, head))}],
-        )
-        if logs:
-            return logs[0]["transactionHash"], int(logs[0]["blockNumber"], 16)
+    for attempt in range(10):  # the node answering can lag the one that reported the finalization
+        head = int(rpc("eth_blockNumber", []), 16)
+        for lo in range(start, head + 1, 10_000):
+            logs = rpc(
+                "eth_getLogs",
+                [{"address": CONSENSUS_MAIN, "topics": [T_FINALIZED, tx], "fromBlock": hex(lo), "toBlock": hex(min(lo + 9_999, head))}],
+            )
+            if logs:
+                return logs[0]["transactionHash"], int(logs[0]["blockNumber"], 16)
+        time.sleep(30)
     raise AssertionError(f"no TransactionFinalized log for {tx}")
 
 

@@ -3,7 +3,8 @@
     DEMO_UPLOAD='ssh <host> "cat > /var/www/<site>/demo/{name}"' \
         gltest test_sponsor_pay_lifecycle.py -v -s --network testnet_bradbury
 
-- campaign 0 (from test_sponsor_pay.py, live period over): a recheck completes it;
+- campaign 0 (from test_sponsor_pay.py): once its live period is over, a
+  recheck completes it (skipped until then);
 - a new campaign goes live, passes an unchanged recheck, then the post is
   edited to drop #ad: the recheck refunds the brand;
 - a new campaign gets three non-compliant posts: expired, brand refunded in full.
@@ -18,6 +19,7 @@ SETTLE="<payout id>:<paying tx>,..." settles payouts left by an interrupted run.
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -25,7 +27,7 @@ from gltest import get_accounts
 
 from .bradbury import attach, ok, reverted, send, settle, view
 
-ADDRESS = "0x6116b695D019859d5fB8CBB55D5570503f560533"
+ADDRESS = "0xBB7C6c404A3D415CD61b7c6bc3168F1DDb928509"
 FEE = 2 * 10**15
 REQS = ["Discloses the sponsorship with #ad", "Mentions the GenLayer Builder Kit", "Points readers to genlayer.com"]
 HOSTS = json.dumps(["sponsorpay.cristhedev.com"])
@@ -51,18 +53,23 @@ def last_payout(c, kind, to, amount):
 
 
 @pytest.mark.integration
-def test_complete_refund_expire():
+def test_complete():
+    """Campaign 0 once its live period (a day) is over: a passing recheck pays the creator the rest."""
+    c = attach("SponsorPay", "sponsor_pay.py", ADDRESS)
+    camp = view(c, "get_campaign", [0])
+    if camp["status"] != "LIVE" or time.time() < camp["live_until"]:
+        pytest.skip(f"campaign 0 is {camp['status']}, live until {camp['live_until']}")
+    tx = wait(lambda: c.connect(get_accounts()[2]).recheck(args=[0]))
+    camp = view(c, "get_campaign", [0])
+    assert camp["status"] == "COMPLETED" and camp["paid"] == camp["amount"], camp
+    settle(c, last_payout(c, "fee", camp["creator"], camp["amount"] - camp["amount"] // 2), tx)
+
+
+@pytest.mark.integration
+def test_refund_expire():
     c = attach("SponsorPay", "sponsor_pay.py", ADDRESS)
     brand, creator, anyone = get_accounts()[:3]
     paid = []  # (payout id, paying tx)
-
-    # Campaign 0: the live period is over, so a passing recheck pays the creator the rest
-    # (done once; a rerun settles that payout with SETTLE).
-    if view(c, "get_campaign", [0])["status"] == "LIVE":
-        tx = wait(lambda: c.connect(anyone).recheck(args=[0]))
-        camp = view(c, "get_campaign", [0])
-        assert camp["status"] == "COMPLETED" and camp["paid"] == camp["amount"], camp
-        paid.append((last_payout(c, "fee", camp["creator"], camp["amount"] - camp["amount"] // 2), tx))
 
     # A live post edited out of compliance refunds the brand.
     cid = view(c, "get_count")
