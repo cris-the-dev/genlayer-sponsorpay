@@ -65,9 +65,21 @@ Run by [`tests/integration/test_sponsor_pay_lifecycle.py`](tests/integration/tes
 | 2 | refund → brand | [`0x7b3c2fc5…`](https://explorer-bradbury.genlayer.com/tx/0x7b3c2fc5d2364469750b54f72a65bd6a5db5f41e9f8659440ddd868787b0f966) | [`0xcfdeb3a7…`](https://explorer-bradbury.genlayer.com/tx/0xcfdeb3a7dbb396f71a07f2387d06dd2ea1f873147f542dcf453778788765db0a) (25601882) | +0.001 GEN | [`0x454d6dcc…`](https://explorer-bradbury.genlayer.com/tx/0x454d6dcc650d71e658776dba6cd8ce0ca0866af0ef8654c0561ca2ef066f9a9d) | DELIVERED |
 | 3 | refund → brand | [`0x8d9aebd9…`](https://explorer-bradbury.genlayer.com/tx/0x8d9aebd985bd02e3e8556184ff42bf5108fee29bc27e13fc2720e6615914d2c3) | [`0x515581d5…`](https://explorer-bradbury.genlayer.com/tx/0x515581d5fa688a06776d87e5b58a2d8bb1131aece90a5ee3c2d23db474dbba9b) (25603173) | +0.002 GEN | [`0xe88a7642…`](https://explorer-bradbury.genlayer.com/tx/0xe88a7642ea2445643b4e9a23732f1d5c35a25c6138ca0b3a8aa9e447e704eafa) | DELIVERED |
 
-Settling a payout again is rejected (e.g. payout 1: [`0x89d3b995…`](https://explorer-bradbury.genlayer.com/tx/0x89d3b9950ae99f955e739836bd473ceab64e78837f4ba7448e389ce790335537)). State now: campaign 1 REFUNDED, 2 EXPIRED, payouts 0–3 all DELIVERED, `get_accounting` reports `unaccounted: 0` (the 0.001 GEN left is campaign 0's second half).
+Settling a payout again is rejected (e.g. payout 1: [`0x89d3b995…`](https://explorer-bradbury.genlayer.com/tx/0x89d3b9950ae99f955e739836bd473ceab64e78837f4ba7448e389ce790335537)). Campaigns 1 and 2: REFUNDED and EXPIRED, payouts 1–3 all DELIVERED.
 
-Campaign 0 stays LIVE until its one-day live period ends (2026-10-21 17:11 UTC); `test_complete` then rechecks it, completes it and settles the second half. Until then it skips.
+### Completion
+
+After campaign 0's one-day live period ended (2026-10-21 17:11 UTC), `test_complete` rechecked it:
+
+| Step | Transaction | Outcome |
+|---|---|---|
+| recheck campaign 0, post still meets the brief | [`0xbb6e9771…`](https://explorer-bradbury.genlayer.com/tx/0xbb6e9771e429bf8b1c86048f2eac1364eb22c836cd71cd83f13a05e5dba023e0) | **COMPLETED**: the second half (payout 4) to the creator |
+
+| Payout | Kind | Paid by | Finalized by (block) | Recipient balance | `settle_payout` | Result |
+|---|---|---|---|---|---|---|
+| 4 | fee → creator | [`0xbb6e9771…`](https://explorer-bradbury.genlayer.com/tx/0xbb6e9771e429bf8b1c86048f2eac1364eb22c836cd71cd83f13a05e5dba023e0) | [`0xff474216…`](https://explorer-bradbury.genlayer.com/tx/0xff474216f7b37cbb9ef4a58033db6f90ca7a612e26f4e9d80eadc781d543465f) (25848986) | +0.001 GEN | [`0x2701270f…`](https://explorer-bradbury.genlayer.com/tx/0x2701270ff6297abef326a6b7c6a99143a28ce7330138078c42730957753aa3c3) | DELIVERED |
+
+Settling it again is rejected ([`0x6f1bc193…`](https://explorer-bradbury.genlayer.com/tx/0x6f1bc193fbdfa54dd7bb2bd7c81e1991b0ed220fb41d90a88dd3469302686024)). Final state: campaign 0 COMPLETED, 1 REFUNDED, 2 EXPIRED, payouts 0–4 all DELIVERED, `get_accounting` reports `unaccounted: 0`.
 
 ## Consensus design
 
